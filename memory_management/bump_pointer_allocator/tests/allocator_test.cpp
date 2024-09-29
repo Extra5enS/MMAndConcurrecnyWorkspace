@@ -22,7 +22,7 @@ TEST(BumpAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ pr
     ASSERT_EQ(allocator.Allocate<char>(0), nullptr);  // you can not allocate memory with 0 size
 }
 
-TEST(BumpAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
+TEST(BumpAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 64U;
     BumpPointerAllocator<MEMORY_POOL_SIZE> allocator;
@@ -37,5 +37,6 @@ TEST(BumpAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABL
     allocator.Free();
     ASSERT_EQ(allocator.Allocate<char>(5U), mem);
     allocator.Free();
+    //
     ASSERT_EQ(allocator.Allocate<size_t>(10U), nullptr);
 }
