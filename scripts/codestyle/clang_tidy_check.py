@@ -200,7 +200,7 @@ def run_clang_tidy(src_path: str, project_dir: str, build_dir: str, compile_args
     # before launching clang-tidy and save the result to ctcache server
     cmd_path = os.getenv('CLANG_TIDY_PATH')
     if not cmd_path:
-        cmd_path = 'clang-tidy-14'
+        cmd_path = 'clang-tidy'
     cmd = [cmd_path]
     cmd += ['-checks=*,' + ','.join(default_disabled_checks)]
     cmd += ['--header-filter=.*']
@@ -346,10 +346,10 @@ def filter_test_file_duplicates(file_list: list) -> list:
             filtered.append((file_path, keys))
 
     filtered.sort(key=lambda tup: tup[0])
-    return filtered;
+    return filtered
 
 
-def check_file_list_duplicate(dup_path : str, file_list: list) -> bool:
+def check_file_list_duplicate(dup_path: str, file_list: list) -> bool:
     count = 0
     for file_path, keys in file_list:
         if dup_path == file_path:
@@ -374,7 +374,7 @@ def filter_file_duplicated_options(file_list: list) -> list:
             filtered.append((file_path, keys))
 
     filtered.sort(key=lambda tup: tup[0])
-    return filtered;
+    return filtered
 
 
 def filter_file_list(file_list: list) -> list:
@@ -411,7 +411,8 @@ def check_headers_in_es2project_sources(project_dir):
                 for line in source_file.readlines():
                     line = line.replace(" ", "")
                     if (line.startswith("#include\"tools/es2project")):
-                        result.append(f"Error: use of header starting with tools/es2project in {file_path}")
+                        result.append(
+                            f"Error: use of header starting with tools/es2project in {file_path}")
                         continue
     if len(result) > 0:
         for file in result:
@@ -430,7 +431,7 @@ def check_file_list_for_system_headers_includes(file_list: list):
     return system_headers_
 
 
-def get_proc_count(cmd_ard : int) -> int:
+def get_proc_count(cmd_ard: int) -> int:
     if cmd_ard > 0:
         return cmd_ard
 
@@ -439,6 +440,7 @@ def get_proc_count(cmd_ard : int) -> int:
         return int(min_proc_str)
 
     return multiprocessing.cpu_count()
+
 
 if __name__ == "__main__":
     arguments = get_args()
