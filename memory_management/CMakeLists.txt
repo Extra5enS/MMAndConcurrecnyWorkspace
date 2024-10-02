@@ -1,0 +1,4 @@
+add_subdirectory(bump_pointer_allocator)
+add_subdirectory(run_of_slots_allocator)
+add_subdirectory(free_list_allocator)
+add_subdirectory(reference_counting_gc)
