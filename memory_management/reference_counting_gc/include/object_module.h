@@ -1,12 +1,10 @@
 #ifndef MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
 #define MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
 
-#include <unistd.h>
 #include <algorithm>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#include "Types.hpp"
 
 template <class T>
 class Object;
@@ -23,20 +21,21 @@ public:
     Object() noexcept = default;
 
     template <class U = T, std::enable_if_t<std::is_constructible_v<T, U>>>
-    Object(U &&value)
+    explicit Object(U &&value)
     {
         new (Get()) T(std::forward<U>(value));
         getHeader_()->rc = 1;
     }
 
-    explicit Object(std::nullptr_t) : val_(nullptr) {}
+    explicit Object(std::nullptr_t) {};
 
     ~Object()
     {
-        if (!val_)
+        if (val_ == nullptr) {
             return;
+        }
 
-        sz *rc = &getHeader_()->rc;
+        size_t *rc = &getHeader_()->rc;
 
         if (*rc == 1) {
             getValue_()->~T();
@@ -54,6 +53,10 @@ public:
 
     Object &operator=(const Object &other)
     {
+        if (this == &other) {
+            return *this;
+        }
+
         this->~Object();
 
         val_ = other.val_;
@@ -71,6 +74,10 @@ public:
 
     Object &operator=(Object &&other)
     {
+        if (this == &other) {
+            return *this;
+        }
+
         std::swap(val_, other.val_);
 
         return *this;
@@ -93,10 +100,11 @@ public:
         return getValue_();
     }
 
-    sz UseCount() const
+    size_t UseCount() const
     {
-        if (val_)
+        if (val_ != nullptr) {
             return getHeader_()->rc;
+        }
         return 0;
     }
 
@@ -115,7 +123,7 @@ public:
 
 private:
     struct Header {
-        sz rc;
+        size_t rc;
     };
 
     char *val_ = nullptr;

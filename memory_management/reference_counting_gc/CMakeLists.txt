@@ -1,5 +1,4 @@
 include_directories(include)
-include_directories("${PROJECT_ROOT}/libs/mlib/Utils/include")
 
 # Testing
 add_gtest(
