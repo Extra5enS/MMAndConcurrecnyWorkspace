@@ -21,34 +21,33 @@ public:
     Object() noexcept = default;
 
     template <class U = T, std::enable_if_t<std::is_constructible_v<T, U>>>
-    explicit Object(U &&value)
+    explicit Object(U &&value) : val_(new T(std::forward<U>(value))), header_(new Header_)
     {
-        new (Get()) T(std::forward<U>(value));
-        getHeader_()->rc = 1;
+        header_->rc = 1;
     }
 
-    explicit Object(std::nullptr_t) {};
+    explicit Object(std::nullptr_t) noexcept {};
 
     ~Object()
     {
-        if (val_ == nullptr) {
+        if (!header_)
             return;
-        }
 
-        size_t *rc = &getHeader_()->rc;
+        size_t &rc = header_->rc;
 
-        if (*rc == 1) {
-            getValue_()->~T();
-            delete[] (char *)val_;
+        if (rc == 1) {
+            delete val_;
+            delete header_;
         } else {
-            --*rc;
+            rc--;
         }
     }
 
-    Object(const Object &other) : val_(other.val_)
+    Object(const Object &other) : val_(other.val_), header_(other.header_)
     {
-        if (val_)
-            getHeader_()->rc++;
+        if (header_) {
+            header_->rc++;
+        }
     }
 
     Object &operator=(const Object &other)
@@ -60,16 +59,19 @@ public:
         this->~Object();
 
         val_ = other.val_;
+        header_ = other.header_;
 
-        if (val_)
-            getHeader_()->rc++;
+        if (header_) {
+            header_->rc++;
+        }
 
         return *this;
     }
 
-    Object(Object &&other) : val_(other.val_)
+    Object(Object &&other) : val_(other.val_), header_(other.header_)
     {
         other.val_ = nullptr;
+        other.header_ = nullptr;
     }
 
     Object &operator=(Object &&other)
@@ -79,33 +81,41 @@ public:
         }
 
         std::swap(val_, other.val_);
+        std::swap(header_, other.header_);
 
         return *this;
     }
 
     T &operator*() const noexcept
     {
-        return *getValue_();
+        return *val_;
     }
 
     T *operator->() const noexcept
     {
-        return getValue_();
+        return val_;
     }
 
-    void Reset(T *ptr) {}
+    void Reset(T *ptr)
+    {
+        this->~Object();
+
+        val_ = ptr;
+        header_ = new Header_;
+        header_->rc = 1;
+    }
 
     T *Get() const
     {
-        return getValue_();
+        return val_;
     }
 
     size_t UseCount() const
     {
-        if (val_ != nullptr) {
-            return getHeader_()->rc;
+        if (header_ == nullptr) {
+            return 0;
         }
-        return 0;
+        return header_->rc;
     }
 
     template <class... Args>
@@ -113,38 +123,20 @@ public:
     {
         Object obj;
 
-        obj.val_ = allocateObj_();
-        obj.getHeader_()->rc = 1;
-
-        new (obj.getValue_()) T(args...);
+        obj.val_ = new T(args...);
+        obj.header_ = new Header_;
+        obj.header_->rc = 1;
 
         return obj;
     }
 
 private:
-    struct Header {
-        size_t rc;
+    struct Header_ {
+        size_t rc = 0;
     };
 
-    char *val_ = nullptr;
-
-    static char *allocateObj_()
-    {
-        return new char[sizeof(Header) + sizeof(T)];
-    }
-
-private:
-    Header *getHeader_() const noexcept
-    {
-        return reinterpret_cast<Header *>(val_);
-    }
-
-    T *getValue_() const noexcept
-    {
-        if (val_)
-            return reinterpret_cast<T *>(val_ + sizeof(Header));
-        return nullptr;
-    }
+    T *val_ = nullptr;
+    Header_ *header_ = nullptr;
 };
 
 #endif  // MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
