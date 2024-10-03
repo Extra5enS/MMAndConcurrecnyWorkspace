@@ -26,7 +26,12 @@ public:
         header_->rc = 1;
     }
 
-    explicit Object(std::nullptr_t) noexcept {};
+    explicit Object(T *ptr) : val_(ptr), header_(new Header_)
+    {
+        header_->rc++;
+    }
+
+    explicit Object(std::nullptr_t) noexcept {}
 
     ~Object()
     {
