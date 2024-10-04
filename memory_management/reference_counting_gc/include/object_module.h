@@ -1,7 +1,6 @@
 #ifndef MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
 #define MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
 
-#include <algorithm>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
