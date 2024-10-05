@@ -4,46 +4,40 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+#include <array>
 
 template <class T>
 class Object;
-
-template <class T, class... Args>
-static Object<T> MakeObject(Args... args)
-{
-    T *value = new T(args...);
-    return Object<T>(value);
-}
 
 template <class T>
 class Object {
 public:
     Object() noexcept = default;
 
-    explicit Object(T *ptr) : val_(ptr), header_(new Header)
+    explicit Object(T *ptr) : ptr_(ptr), header_(new Header)
     {
-        header_->rc++;
+        header_->ptr = ptr_;
+        header_->rc = 1;
     }
 
     explicit Object(std::nullptr_t) noexcept {}
 
     ~Object()
     {
-        if (!header_) {
+        if (header_ == nullptr) {
             return;
         }
 
-        size_t &rc = header_->rc;
+        header_->rc--;
 
-        if (rc == 1) {
-            delete val_;
+        if (header_->rc == 0) {
+            ptr_->~T();
+            delete header_->ptr;
             delete header_;
-        } else {
-            rc--;
         }
     }
 
-    Object(const Object &other) : val_(other.val_), header_(other.header_)
+    Object(const Object &other) : ptr_(other.ptr_), header_(other.header_)
     {
         if (header_) {
             header_->rc++;
@@ -58,7 +52,7 @@ public:
 
         this->~Object();
 
-        val_ = other.val_;
+        ptr_ = other.ptr_;
         header_ = other.header_;
 
         if (header_) {
@@ -68,11 +62,7 @@ public:
         return *this;
     }
 
-    Object(Object &&other) : val_(other.val_), header_(other.header_)
-    {
-        other.val_ = nullptr;
-        other.header_ = nullptr;
-    }
+    Object(Object &&other) : ptr_(std::exchange(other.ptr_, nullptr)), header_(std::exchange(other.header_, nullptr)) {}
 
     Object &operator=(Object &&other)
     {
@@ -80,7 +70,7 @@ public:
             return *this;
         }
 
-        std::swap(val_, other.val_);
+        std::swap(ptr_, other.ptr_);
         std::swap(header_, other.header_);
 
         return *this;
@@ -88,12 +78,12 @@ public:
 
     T &operator*() const noexcept
     {
-        return *val_;
+        return *ptr_;
     }
 
     T *operator->() const noexcept
     {
-        return val_;
+        return ptr_;
     }
 
     void Reset(T *ptr)
@@ -103,7 +93,7 @@ public:
 
     T *Get() const
     {
-        return val_;
+        return ptr_;
     }
 
     size_t UseCount() const
@@ -114,13 +104,32 @@ public:
         return header_->rc;
     }
 
+    template <class U, class... Args>
+    friend Object<U> MakeObject(Args &&...args);
+
 private:
     struct Header {
-        size_t rc = 0;
+        size_t rc;
+        T *ptr;
+        std::array<char, sizeof(T)> valBuffer;
     };
 
-    T *val_ = nullptr;
+    T *ptr_ = nullptr;
     Header *header_ = nullptr;
 };
+
+template <class T, class... Args>
+static Object<T> MakeObject(Args &&...args)
+{
+    Object<T> obj;
+    obj.header_ = new typename Object<T>::Header;
+    obj.header_->rc = 1;
+    obj.header_->ptr = nullptr;
+
+    new (&obj.header_->valBuffer) T(std::forward<Args>(args)...);
+    obj.ptr_ = reinterpret_cast<T *>(&obj.header_->valBuffer);
+
+    return obj;
+}
 
 #endif  // MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
