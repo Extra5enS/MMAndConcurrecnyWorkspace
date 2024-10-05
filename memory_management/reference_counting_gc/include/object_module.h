@@ -11,22 +11,14 @@ class Object;
 template <class T, class... Args>
 static Object<T> MakeObject(Args... args)
 {
-    return Object<T>::MakeObject(args...);
+    T *value = new T(args...);
+    return Object<T>(value);
 }
 
 template <class T>
 class Object {
 public:
     Object() noexcept = default;
-
-    template <class U = T, std::enable_if_t<std::is_constructible_v<T, U>>>
-    // See
-    // https://en.cppreference.com/w/cpp/language/overload_resolution#:~:text=since%20C%2B%2B11)-,Best%20viable%20function,-For%20each%20pair
-    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
-    explicit Object(U &&value) : val_(new T(std::forward<U>(value))), header_(new Header)
-    {
-        header_->rc = 1;
-    }
 
     explicit Object(T *ptr) : val_(ptr), header_(new Header)
     {
@@ -106,11 +98,7 @@ public:
 
     void Reset(T *ptr)
     {
-        this->~Object();
-
-        val_ = ptr;
-        header_ = new Header;
-        header_->rc = 1;
+        *this = Object(ptr);
     }
 
     T *Get() const
@@ -124,18 +112,6 @@ public:
             return 0;
         }
         return header_->rc;
-    }
-
-    template <class... Args>
-    static Object MakeObject(Args... args)
-    {
-        Object obj;
-
-        obj.val_ = new T(args...);
-        obj.header_ = new Header;
-        obj.header_->rc = 1;
-
-        return obj;
     }
 
 private:
