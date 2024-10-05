@@ -29,7 +29,7 @@ TEST(ReferenceCountingGC, SinglePtrUsage)
     ASSERT_EQ(classObj.UseCount(), 1U);
     ASSERT_NE(classObj.Get(), nullptr);
     ASSERT_EQ(classObj->Get(), Return42().Get());
-}
+}  // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
 
 TEST(ReferenceCountingGC, CopySemanticUsage)
 {
