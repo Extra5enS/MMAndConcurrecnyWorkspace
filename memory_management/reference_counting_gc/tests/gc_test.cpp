@@ -97,5 +97,5 @@ TEST(ReferenceCountingGC, CorrectPtrReset) {
 
     constexpr size_t VALUE_TO_RESET = 206U;
     obj2.Reset(new size_t(VALUE_TO_RESET));
-    ASSERT_EQ(obj1.Get(), obj2.Get());
+    ASSERT_NE(obj1.Get(), obj2.Get());
 }
