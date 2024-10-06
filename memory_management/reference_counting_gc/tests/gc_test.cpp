@@ -17,7 +17,7 @@ TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
     Object<size_t> obj;
     ASSERT_EQ(obj.UseCount(), 0);
     ASSERT_EQ(obj.Get(), nullptr);
-
+    // sets
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> sizeObj = MakeObject<size_t>(VALUE_TO_CREATE);
     ASSERT_EQ(sizeObj.UseCount(), 1U);
