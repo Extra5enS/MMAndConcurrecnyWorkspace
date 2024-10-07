@@ -50,7 +50,7 @@ TEST(ReferenceCountingGC, CopySemanticUsage)
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
 
-TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
+TEST(ReferenceCountingGC, MoveSemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
@@ -73,7 +73,7 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
 }
 
 
-TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
+TEST(ReferenceCountingGC, GcDeletingTest) {
     DeleteDetector::SetDeleteCount(0U);
     auto obj1 = MakeObject<DeleteDetector>();
     {

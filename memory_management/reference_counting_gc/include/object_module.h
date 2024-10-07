@@ -68,9 +68,16 @@ public:
     }
 
     // move semantic
-    Object([[maybe_unused]] Object<T> &&other) {}
+    Object([[maybe_unused]] Object<T> &&other)
+    {
+        std::swap(val_, other.val_);
+        std::swap(count_, other.count_);
+    }
+
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
+        std::swap(val_, other.val_);
+        std::swap(count_, other.count_);
         return *this;
     }
 
