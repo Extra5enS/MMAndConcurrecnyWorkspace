@@ -52,7 +52,9 @@ public:
     Object<T> &operator=([[maybe_unused]] const Object<T> &other)
     {
         if (this == &other)
+        {
             return *this;
+        }
         
         (*count_)--;
         if (*count_ <= 0)
