@@ -93,7 +93,13 @@ public:
     }
 
     // internal access
-    void Reset([[maybe_unused]] T *ptr) {}
+    void Reset([[maybe_unused]] T *ptr)
+    {
+        delete val_;
+        val_ = ptr;
+        *count_ = 1; 
+    }
+
     T *Get() const
     {
         return val_;
