@@ -33,12 +33,7 @@ public:
 
     ~Object()
     {
-        (*count_)--;
-        if (*count_ <= 0)
-        {
-            delete count_;
-            delete val_;
-        }
+        Dtor();
     }
 
     // copy semantic
@@ -56,12 +51,7 @@ public:
             return *this;
         }
         
-        (*count_)--;
-        if (*count_ <= 0)
-        {
-            delete count_;
-            delete val_;
-        }
+        Dtor();
 
         val_ = other.val_;
         count_ = other.count_;
@@ -95,15 +85,16 @@ public:
     // internal access
     void Reset([[maybe_unused]] T *ptr)
     {
-        delete val_;
+        Dtor();
         val_ = ptr;
-        *count_ = 1; 
+        count_ = new size_t{1}; 
     }
 
     T *Get() const
     {
         return val_;
     }
+
     size_t UseCount() const
     {
         return *count_;
@@ -113,6 +104,16 @@ private:
     
     T *val_ = nullptr;
     size_t *count_ = new size_t{0};
+
+    void Dtor()
+    {
+        (*count_)--;
+        if (*count_ <= 0)
+        {
+            delete count_;
+            delete val_;
+        }
+    }
 };
 
 #endif  // MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
