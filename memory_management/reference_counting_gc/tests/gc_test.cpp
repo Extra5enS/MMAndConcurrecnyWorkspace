@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <iostream>
 #include "memory_management/reference_counting_gc/include/object_module.h"
 #include "base/macros.h"
 #include "delete_detector.h"
@@ -54,6 +55,7 @@ TEST(ReferenceCountingGC, MoveSemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
+
     size_t *ptr = obj1.Get();
     {
         Object<size_t> obj2(std::move(obj1));

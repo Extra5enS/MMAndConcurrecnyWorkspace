@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 
 template <class T>
 class Object;
@@ -68,8 +69,8 @@ public:
             return *this;
         }
 
-        val_ = std::move(other.val_);
-        header_ = std::move(other.header_);
+        std::swap(val_, other.val_);
+        std::swap(header_, other.header_);
 
         return *this;
     }
