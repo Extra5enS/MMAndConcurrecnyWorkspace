@@ -32,4 +32,6 @@
 *.app
 
 # Build dir
-build/*
+build**/*
+.cache
+.vscode
