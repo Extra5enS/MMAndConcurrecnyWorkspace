@@ -200,7 +200,7 @@ def run_clang_tidy(src_path: str, project_dir: str, build_dir: str, compile_args
     # before launching clang-tidy and save the result to ctcache server
     cmd_path = os.getenv('CLANG_TIDY_PATH')
     if not cmd_path:
-        cmd_path = 'clang-tidy-14'
+        cmd_path = 'clang-tidy'
     cmd = [cmd_path]
     cmd += ['-checks=*,' + ','.join(default_disabled_checks)]
     cmd += ['--header-filter=.*']
