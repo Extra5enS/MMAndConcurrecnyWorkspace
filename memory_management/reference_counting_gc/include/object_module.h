@@ -20,67 +20,69 @@ static Object<T> MakeObject([[maybe_unused]] Args... args)
 template <class T>
 class Object {
 public:
-    Object() : val_(nullptr), ref_count_(nullptr) {}
-    explicit Object(std::nullptr_t) : val_(nullptr), ref_count_(nullptr) {}
+    Object() : val_(nullptr) {}
+    explicit Object(std::nullptr_t) : val_(nullptr) {}
     
-    explicit Object([[maybe_unused]] T *ptr) : val_(ptr), ref_count_(new size_t)
+    explicit Object([[maybe_unused]] T *ptr) : val_(ptr), refCount_(new size_t)
     {
-        *ref_count_ = 1;
+        *refCount_ = 1;
     }
 
     ~Object()
     {
         if (UseCount() == 0 || UseCount() == 1)
         {
-            delete ref_count_;
+            delete refCount_;
             delete val_;
         }
         else
         {
-            (*ref_count_)--;
+            (*refCount_)--;
+            
+            refCount_ = nullptr;
+            val_ = nullptr;
         }
     }
 
     // copy semantic
-    Object([[maybe_unused]] const Object<T> &other) : val_(other.val_), ref_count_(other.ref_count_) 
+    Object([[maybe_unused]] const Object<T> &other) : val_(other.val_), refCount_(other.refCount_) 
     {
-        (*ref_count_)++;
+        (*refCount_)++;
     }
     
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-
     Object<T> &operator=([[maybe_unused]] const Object<T> &other)
     {
-        if (UseCount() != 0)
+        if (this != &other)
         {
-            (*ref_count_)--;
+            if (UseCount() != 0)
+            {
+                (*refCount_)--;
+            }
+            
+            val_ = other.val_;
+            refCount_ = other.refCount_;
+            (*refCount_)++;
         }
-        
-        val_ = other.val_;
-        ref_count_ = other.ref_count_;
-        (*ref_count_)++;
-     
+
         return *this;
     }
 
     // move semantic
-    Object([[maybe_unused]] Object<T> &&other) //: val_(other.val_), ref_count_(other.ref_count_)
+    Object([[maybe_unused]] Object<T> &&other)
     {
         std::swap(val_, other.val_);
-        std::swap(ref_count_, other.ref_count_);
+        std::swap(refCount_, other.refCount_);
     }
 
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
-        if (this == &other)
+        if (this != &other)
         {
-            return *this;
+            std::swap(val_, other.val_);
+            std::swap(refCount_, other.refCount_);
+            
+            other.~Object();                
         }
-
-        std::swap(val_, other.val_);
-        std::swap(ref_count_, other.ref_count_);
-        
-        other.~Object();
 
         return *this;
     }
@@ -104,16 +106,18 @@ public:
             return;
         }
 
-        if (UseCount() == 0)
+        if (UseCount() == 0 || UseCount() == 1)
         {
-            ref_count_ = new size_t;
+            delete refCount_;
+            delete val_;
         }
         else
         {
-            delete val_;
+            (*refCount_)--;
         }
-        
-        (*ref_count_) = 1;
+
+        refCount_ = new size_t;
+        (*refCount_) = 1;
         val_ = ptr;
     }
 
@@ -121,23 +125,21 @@ public:
     {
         return val_;
     }
+
     size_t UseCount() const
     {
-        if (ref_count_ == nullptr)
+        if (refCount_ == nullptr)
         {
             return 0;
         }
-        else
-        {
-            return *ref_count_;
-        }
+        return *refCount_;
     }    
 
 private:
 
     void Dump() const
     {
-        if (ref_count_ == nullptr)
+        if (refCount_ == nullptr)
         {   
             std::cout << "reference counting is not exist" << std::endl;
         }
@@ -156,7 +158,7 @@ private:
         }
     }
 
-    size_t* ref_count_ = nullptr;
+    size_t* refCount_ = nullptr;
     T* val_ = nullptr;
 };
 
