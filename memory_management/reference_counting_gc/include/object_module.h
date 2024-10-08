@@ -97,7 +97,7 @@ public:
 
     size_t UseCount() const
     {
-        if (!count_)
+        if (count_ == nullptr)
         {
             return 0;
         }
@@ -111,7 +111,7 @@ private:
 
     void Dtor()
     {
-        if (!count_)
+        if (count_ == nullptr)
         {
             return;
         }
