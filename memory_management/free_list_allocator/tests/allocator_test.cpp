@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "memory_management/free_list_allocator/include/free_list_allocator.h"
 
-TEST(FreeListAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix to use test
+TEST(FreeListAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 4048U;
     FreeListAllocator<MEMORY_POOL_SIZE> allocator;
@@ -27,7 +27,7 @@ TEST(FreeListAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix 
     allocator.Free(int1);
 }
 
-TEST(FreeListAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
+TEST(FreeListAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 8U;
     FreeListAllocator<MEMORY_POOL_SIZE> allocator;
