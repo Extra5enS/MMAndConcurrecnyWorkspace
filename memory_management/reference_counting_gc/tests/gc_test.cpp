@@ -36,7 +36,6 @@ TEST(ReferenceCountingGC, CopySemanticUsage)
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
     {
         Object<size_t> obj2(obj1); // NOLINT(performance-unnecessary-copy-initialization)
-
         ASSERT_EQ(obj1.UseCount(), 2U);
         ASSERT_EQ(obj1.Get(), obj2.Get());
     }
@@ -72,7 +71,6 @@ TEST(ReferenceCountingGC, MoveSemanticUsage)
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
 
-
 TEST(ReferenceCountingGC, GcDeletingTest) {
     DeleteDetector::SetDeleteCount(0U);
     auto obj1 = MakeObject<DeleteDetector>();
@@ -82,7 +80,6 @@ TEST(ReferenceCountingGC, GcDeletingTest) {
         obj1->SetDelete(obj2);
         ASSERT_EQ(obj2.UseCount(), 2U);
     }
-
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 0U);
     obj1->SetDelete(Object<DeleteDetector>());
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 2U);
