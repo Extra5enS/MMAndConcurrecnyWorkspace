@@ -97,16 +97,25 @@ public:
 
     size_t UseCount() const
     {
+        if (!count_)
+        {
+            return 0;
+        }
         return *count_;
     }
 
 private:
     
     T *val_ = nullptr;
-    size_t *count_ = new size_t{0};
+    size_t *count_ = nullptr;
 
     void Dtor()
     {
+        if (!count_)
+        {
+            return;
+        }
+
         (*count_)--;
         if (*count_ <= 0)
         {
