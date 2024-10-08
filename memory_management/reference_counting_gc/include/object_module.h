@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <utility>
 #include <iostream>
-//<string_view>
 
 template <class T>
 class Object;
@@ -20,32 +19,25 @@ static Object<T> MakeObject([[maybe_unused]] Args... args)
 template <class T>
 class Object {
 public:
-    Object() : val_(nullptr) {}
-    explicit Object(std::nullptr_t) : val_(nullptr) {}
+    Object() = default;
     
-    explicit Object([[maybe_unused]] T *ptr) : val_(ptr), refCount_(new size_t)
-    {
-        *refCount_ = 1;
-    }
+    explicit Object(std::nullptr_t) : val_(nullptr), refCount_(new size_t{0}) {}
+    
+    explicit Object([[maybe_unused]] T *ptr) : val_(ptr), refCount_(new size_t{1}) {}
 
     ~Object()
     {
-        if (refCount_ == nullptr)
+        if (refCount_ != nullptr)
         {
-            return;
-        }
-        
-        if (*refCount_ <= 1)
-        {
-            delete refCount_;
-            delete val_;
-        }
-        else
-        {
-            (*refCount_)--;
-            
-            refCount_ = nullptr;
-            val_ = nullptr;
+            if (*refCount_ <= 1)
+            {
+                delete refCount_;
+                delete val_;
+            }
+            else
+            {
+                (*refCount_)--;
+            }
         }
     }
 
@@ -59,11 +51,19 @@ public:
     {
         if (this != &other)
         {
-            if (UseCount() != 0)
+            if (refCount_ != nullptr)
             {
-                (*refCount_)--;
+                if (*refCount_ <= 1)
+                {
+                    delete refCount_;
+                    delete val_;
+                }
+                else
+                {
+                    (*refCount_)--;
+                }
             }
-            
+
             val_ = other.val_;
             refCount_ = other.refCount_;
             (*refCount_)++;
@@ -81,13 +81,8 @@ public:
 
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
-        if (this != &other)
-        {
-            std::swap(val_, other.val_);
-            std::swap(refCount_, other.refCount_);
-            
-            other.~Object();                
-        }
+        std::swap(val_, other.val_);
+        std::swap(refCount_, other.refCount_);
 
         return *this;
     }
@@ -110,8 +105,8 @@ public:
         {    
             return;
         }
-
-        if (UseCount() == 0 || UseCount() == 1)
+        
+        if (UseCount() <= 1)
         {
             delete refCount_;
             delete val_;
@@ -140,8 +135,6 @@ public:
         return *refCount_;
     }    
 
-private:
-
     void Dump() const
     {
         if (refCount_ == nullptr)
@@ -162,6 +155,8 @@ private:
             std::cout << "value of object " << Get() << std::endl;
         }
     }
+
+private:
 
     size_t* refCount_ = nullptr;
     T* val_ = nullptr;
