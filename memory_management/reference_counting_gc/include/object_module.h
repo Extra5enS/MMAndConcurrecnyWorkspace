@@ -103,8 +103,18 @@ public:
         {    
             return;
         }
+
+        if (UseCount() == 0)
+        {
+            ref_count_ = new size_t;
+        }
+        else
+        {
+            delete val_;
+        }
         
-        *val_ = *ptr;
+        (*ref_count_) = 1;
+        val_ = ptr;
     }
 
     T *Get() const
