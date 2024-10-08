@@ -90,7 +90,7 @@ TEST(ReferenceCountingGC, GcDeletingTest) {
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 3U);
 }
 
-TEST(ReferenceCountingGC, DISABLED_CorrectPtrReset) {
+TEST(ReferenceCountingGC, CorrectPtrReset) {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
     Object<size_t> obj2 = obj1;
