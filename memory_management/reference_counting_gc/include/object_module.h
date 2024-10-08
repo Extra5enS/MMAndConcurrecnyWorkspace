@@ -30,7 +30,12 @@ public:
 
     ~Object()
     {
-        if (UseCount() == 0 || UseCount() == 1)
+        if (refCount_ == nullptr)
+        {
+            return;
+        }
+        
+        if (*refCount_ <= 1)
         {
             delete refCount_;
             delete val_;
