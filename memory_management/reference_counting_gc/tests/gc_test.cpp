@@ -12,7 +12,7 @@ public:
     }
 };
 
-TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
+TEST(ReferenceCountingGC, SinglePtrUsage)
 {
     Object<size_t> obj;
     ASSERT_EQ(obj.UseCount(), 0);
@@ -30,7 +30,7 @@ TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
     ASSERT_EQ(classObj->Get(), Return42().Get());
 }
 
-TEST(ReferenceCountingGC, DISABLED_CopySemanticUsage)
+TEST(ReferenceCountingGC, CopySemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
@@ -49,7 +49,7 @@ TEST(ReferenceCountingGC, DISABLED_CopySemanticUsage)
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
 
-TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
+TEST(ReferenceCountingGC, MoveSemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
@@ -72,7 +72,7 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
 }
 
 
-TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
+TEST(ReferenceCountingGC, GcDeletingTest) {
     DeleteDetector::SetDeleteCount(0U);
     auto obj1 = MakeObject<DeleteDetector>();
     {
