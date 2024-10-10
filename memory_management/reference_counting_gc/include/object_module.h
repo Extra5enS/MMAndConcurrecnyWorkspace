@@ -33,7 +33,7 @@ public:
 
     ~Object()
     {
-        Dtor();
+        ProcessMemRelease();
     }
 
     // copy semantic
@@ -51,7 +51,7 @@ public:
             return *this;
         }
         
-        Dtor();
+        ProcessMemRelease();
 
         val_ = other.val_;
         count_ = other.count_;
@@ -85,7 +85,7 @@ public:
     // internal access
     void Reset([[maybe_unused]] T *ptr)
     {
-        Dtor();
+        ProcessMemRelease();
         val_ = ptr;
         count_ = new size_t{1}; 
     }
@@ -109,7 +109,7 @@ private:
     T *val_ = nullptr;
     size_t *count_ = nullptr;
 
-    void Dtor()
+    void ProcessMemRelease()
     {
         if (count_ == nullptr)
         {
