@@ -28,17 +28,32 @@ class MarkWord
 {
 public:
     MarkWord() : refCount_(new size_t{1}) {}
-    
-    explicit MarkWord(const size_t refCount) : refCount_(new size_t{refCount}) {}
-    
-    MarkWord([[maybe_unused]]MarkWord &other) = default;
+    MarkWord(std::nullptr_t) : refCount_(nullptr) {}
+        
+    MarkWord([[maybe_unused]] const MarkWord &other) : refCount_(other.refCount_)
+    {
+        SetRefCount(GetRefCount() + 1);
+    }
 
     MarkWord &operator=([[maybe_unused]] const MarkWord &other)
     {
-        if (this != &other)
+        if (this == &other)
         {
-            refCount_ = other.refCount_;
+            return *this;
         }
+    
+        if (GetRefCount() <= 1)
+        {
+            delete refCount_;
+            refCount_ = nullptr;
+        }
+        else
+        {
+            SetRefCount(GetRefCount() - 1);
+        }
+
+        refCount_ = other.refCount_;
+        SetRefCount(GetRefCount() + 1);
 
         return *this;
     }
@@ -67,7 +82,7 @@ public:
         }
         else
         {
-            (*refCount_)--;
+            SetRefCount(GetRefCount() - 1);
         }
     }
 
@@ -81,6 +96,7 @@ public:
         return *refCount_;
     }
 
+private:
     void SetRefCount(const size_t refCount)
     {
         if (refCount_ == nullptr)
@@ -91,7 +107,6 @@ public:
         *refCount_ = refCount;
     }
 
-private:
     size_t *refCount_ = nullptr;
 };
 
@@ -101,7 +116,9 @@ public:
     ObjectHeader() = default;
     ~ObjectHeader() = default;
 
-    ObjectHeader([[maybe_unused]]ObjectHeader &other) = default;
+    ObjectHeader(std::nullptr_t) : markWord_(nullptr) {}
+
+    ObjectHeader([[maybe_unused]] const ObjectHeader &other) : markWord_(other.markWord_) {}
 
     ObjectHeader &operator=([[maybe_unused]] const ObjectHeader &other)
     {
@@ -127,16 +144,10 @@ public:
 
         return *this;
     }
-
     
     size_t GetRefCount() const
     {
         return markWord_.GetRefCount();
-    }
-
-    void SetRefCount(const size_t refCount)
-    {
-        markWord_.SetRefCount(refCount);
     }
 
 private:
@@ -155,40 +166,21 @@ template <class T>
 class Object {
 public:
 
-    static void SetRefCount(Object<T> &object, const size_t refCount)
-    {
-        object.objectHeader_->SetRefCount(refCount);
-    }
+    Object() : objectData_(nullptr), objectHeader_(nullptr) {}
+    explicit Object(std::nullptr_t) : objectData_(nullptr), objectHeader_(nullptr) {}
 
-    static size_t GetRefCount(Object<T> &object)
-    {
-        return object.objectHeader_->GetRefCount();
-    }
-
-    Object() : objectData_(nullptr) {}
-    explicit Object(std::nullptr_t) : objectData_(nullptr) {}
-
-    explicit Object([[maybe_unused]] T *ptr) : objectData_(ptr), objectHeader_(new ObjectHeader{}) {}
+    explicit Object([[maybe_unused]] T *ptr) : objectData_(ptr), objectHeader_() {}
 
     ~Object()
     {
         if (UseCount() <= 1)
         {
             delete objectData_;
-            delete objectHeader_;
-        }
-        else
-        {
-            objectData_ = nullptr;
-            objectHeader_->~ObjectHeader();
         }
     }
 
     // copy semantic
-    Object([[maybe_unused]] const Object<T> &other) : objectData_(other.objectData_), objectHeader_(other.objectHeader_)
-    {
-        SetRefCount(*this, GetRefCount(*this) + 1);
-    }
+    Object([[maybe_unused]] const Object<T> &other) : objectData_(other.objectData_), objectHeader_(other.objectHeader_) {}
 
     // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     Object<T> &operator=([[maybe_unused]] const Object<T> &other)
@@ -201,16 +193,10 @@ public:
         if (UseCount() <= 1)
         {
             delete objectData_;
-            delete objectHeader_;
-        }
-        else
-        {
-            objectHeader_->~ObjectHeader();
         }
 
         objectData_ = other.objectData_;
         objectHeader_ = other.objectHeader_;
-        SetRefCount(*this, GetRefCount(*this) + 1);
 
         return *this;
     }
@@ -221,7 +207,6 @@ public:
         std::swap(objectHeader_, other.objectHeader_);
         std::swap(objectData_, other.objectData_);
     }
-
 
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
@@ -247,12 +232,7 @@ public:
 
     size_t UseCount() const
     {
-        if (objectHeader_ == nullptr)
-        {
-            return 0;
-        }
-
-        return objectHeader_->GetRefCount();
+        return objectHeader_.GetRefCount();
     }
 
     bool operator==([[maybe_unused]] const Object<T> other) const
@@ -286,19 +266,11 @@ public:
             std::cout << "Object data is nullptr" << std::endl;
         }
 
-        if (objectHeader_ != nullptr)
-        {
-            std::cout << "Object Header is " << objectHeader_ << std::endl;
-            std::cout << "Reference count is " << UseCount() << std::endl;
-        }
-        else
-        {
-            std::cout << "Object Header is nullptr" << std::endl;
-        }
+        std::cout << "Reference count is " << UseCount() << std::endl;
     }
 
 private:
-    ObjectHeader *objectHeader_ = nullptr; 
+    ObjectHeader objectHeader_ = nullptr; 
     T *objectData_ = nullptr;
 };
 
