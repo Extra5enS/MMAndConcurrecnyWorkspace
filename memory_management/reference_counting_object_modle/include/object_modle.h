@@ -5,18 +5,6 @@
 #include <functional>
 #include <iostream>
 
-/*
-
-template <class T>
-static size_t GetHash(T *ptr)
-{
-    std::hash<T> ptrHash;
-    return ptrHash(*ptr);
-}
-
-size_t hash_ = 0;    
-*/
-
 template <class T>
 class Object;
 
