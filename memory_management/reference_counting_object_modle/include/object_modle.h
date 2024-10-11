@@ -28,7 +28,7 @@ class MarkWord
 {
 public:
     MarkWord() : refCount_(new size_t{1}) {}
-    MarkWord(std::nullptr_t) : refCount_(nullptr) {}
+    explicit MarkWord(std::nullptr_t) {}
         
     MarkWord([[maybe_unused]] const MarkWord &other) : refCount_(other.refCount_)
     {
@@ -116,9 +116,9 @@ public:
     ObjectHeader() = default;
     ~ObjectHeader() = default;
 
-    ObjectHeader(std::nullptr_t) : markWord_(nullptr) {}
+    explicit ObjectHeader(std::nullptr_t) : markWord_(nullptr) {}
 
-    ObjectHeader([[maybe_unused]] const ObjectHeader &other) : markWord_(other.markWord_) {}
+    ObjectHeader([[maybe_unused]] const ObjectHeader &other) = default;
 
     ObjectHeader &operator=([[maybe_unused]] const ObjectHeader &other)
     {
@@ -169,7 +169,7 @@ public:
     Object() : objectData_(nullptr), objectHeader_(nullptr) {}
     explicit Object(std::nullptr_t) : objectData_(nullptr), objectHeader_(nullptr) {}
 
-    explicit Object([[maybe_unused]] T *ptr) : objectData_(ptr), objectHeader_() {}
+    explicit Object([[maybe_unused]] T *ptr) : objectData_(ptr) {}
 
     ~Object()
     {
@@ -270,7 +270,7 @@ public:
     }
 
 private:
-    ObjectHeader objectHeader_ = nullptr; 
+    ObjectHeader objectHeader_; 
     T *objectData_ = nullptr;
 };
 
