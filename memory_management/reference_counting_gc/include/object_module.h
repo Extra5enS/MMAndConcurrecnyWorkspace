@@ -110,7 +110,7 @@ private:
     struct Header {
         size_t rc;
         T *ptr;
-        std::array<char, sizeof(T)> valBuffer;
+        char valBuffer[];
     };
 
     T *ptr_ = nullptr;
@@ -120,8 +120,10 @@ private:
 template <class T, class... Args>
 static Object<T> MakeObject(Args &&...args)
 {
+    using Header = typename Object<T>::Header;
+
     Object<T> obj;
-    obj.header_ = new typename Object<T>::Header;
+    obj.header_ = reinterpret_cast<Header*>(new char[sizeof(Header) + sizeof(T)]);
     obj.header_->rc = 1;
     obj.header_->ptr = nullptr;
 
