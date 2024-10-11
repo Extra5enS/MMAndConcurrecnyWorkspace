@@ -13,7 +13,7 @@ class Object {
 public:
     Object() noexcept = default;
 
-    explicit Object(T *ptr) : ptr_(ptr), header_(new Header)
+    explicit Object(T *ptr) : ptr_(ptr), header_(reinterpret_cast<Header *>(new char[sizeof(Header)]))
     {
         header_->ptr = ptr_;
         header_->rc = 1;
@@ -32,7 +32,7 @@ public:
         if (header_->rc == 0) {
             ptr_->~T();
             delete header_->ptr;
-            delete header_;
+            delete[] reinterpret_cast<char *>(header_);
         }
     }
 
@@ -110,7 +110,7 @@ private:
     struct Header {
         size_t rc;
         T *ptr;
-        char valBuffer[];
+        char valBuffer[];  // NOLINT(modernize-avoid-c-arrays)
     };
 
     T *ptr_ = nullptr;
@@ -123,7 +123,7 @@ static Object<T> MakeObject(Args &&...args)
     using Header = typename Object<T>::Header;
 
     Object<T> obj;
-    obj.header_ = reinterpret_cast<Header*>(new char[sizeof(Header) + sizeof(T)]);
+    obj.header_ = reinterpret_cast<Header *>(new char[sizeof(Header) + sizeof(T)]);
     obj.header_->rc = 1;
     obj.header_->ptr = nullptr;
 
