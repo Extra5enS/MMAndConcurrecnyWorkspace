@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <utility>
-#include <array>
 
 template <class T>
 class Object;
