@@ -2,7 +2,6 @@
 #define MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODEL_H
 
 #include <cstddef>
-#include <utility>
 #include <iostream>
 
 template <class T>
@@ -27,18 +26,7 @@ public:
 
     ~Object()
     {
-        if (refCount_ != nullptr)
-        {
-            if (*refCount_ <= 1)
-            {
-                delete refCount_;
-                delete val_;
-            }
-            else
-            {
-                (*refCount_)--;
-            }
-        }
+        RefCountDtor();
     }
 
     // copy semantic
@@ -51,18 +39,7 @@ public:
     {
         if (this != &other)
         {
-            if (refCount_ != nullptr)
-            {
-                if (*refCount_ <= 1)
-                {
-                    delete refCount_;
-                    delete val_;
-                }
-                else
-                {
-                    (*refCount_)--;
-                }
-            }
+            RefCountDtor();
 
             val_ = other.val_;
             refCount_ = other.refCount_;
@@ -106,15 +83,7 @@ public:
             return;
         }
         
-        if (UseCount() <= 1)
-        {
-            delete refCount_;
-            delete val_;
-        }
-        else
-        {
-            (*refCount_)--;
-        }
+        RefCountDtor();
 
         refCount_ = new size_t;
         (*refCount_) = 1;
@@ -133,30 +102,25 @@ public:
             return 0;
         }
         return *refCount_;
-    }    
-
-    void Dump() const
-    {
-        if (refCount_ == nullptr)
-        {   
-            std::cout << "reference counting is not exist" << std::endl;
-        }
-        else
-        {
-            std::cout << "reference counting " << UseCount() << std::endl;
-        }
-        
-        if (val_ == nullptr)
-        {   
-            std::cout << "value of object is not exist" << std::endl;
-        }
-        else
-        {
-            std::cout << "value of object " << Get() << std::endl;
-        }
     }
 
 private:
+
+    void RefCountDtor()
+    {
+        if (refCount_ != nullptr)
+        {
+            if (*refCount_ <= 1)
+            {
+                delete refCount_;
+                delete val_;
+            }
+            else
+            {
+                (*refCount_)--;
+            }
+        }
+    }
 
     size_t* refCount_ = nullptr;
     T* val_ = nullptr;
