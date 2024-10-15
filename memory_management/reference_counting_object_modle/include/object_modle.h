@@ -91,7 +91,7 @@ public:
 
     explicit Header(std::nullptr_t) : markWord_(nullptr) {}
 
-    Header([[maybe_unused]] const Header &other) : markWord_(other.markWord_) {}
+    Header([[maybe_unused]] const Header &other) = default;
 
     Header &operator=([[maybe_unused]] const Header &other)
     {
