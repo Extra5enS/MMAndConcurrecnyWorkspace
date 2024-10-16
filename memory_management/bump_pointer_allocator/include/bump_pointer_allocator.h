@@ -1,8 +1,8 @@
 #ifndef MEMORY_MANAGEMENT_BUMP_POINTER_ALLOCATOR_INCLUDE_BUMP_POINTER_ALLOCATOR_H
 #define MEMORY_MANAGEMENT_BUMP_POINTER_ALLOCATOR_INCLUDE_BUMP_POINTER_ALLOCATOR_H
 
-#include <cstddef>    // is used for size_t
-#include <exception>  // IWYU pragma: keep
+#include <cstddef>  // is used for size_t
+#include <new>
 #include <unistd.h>
 #include <sys/mman.h>
 #include "base/macros.h"
@@ -17,7 +17,7 @@ public:
         }
     }
 
-    ~BumpPointerAllocator()
+    ~BumpPointerAllocator() noexcept
     {
         munmap(base_, MEMORY_POOL_SIZE);
     }
@@ -26,7 +26,7 @@ public:
     NO_MOVE_SEMANTIC(BumpPointerAllocator);
 
     template <class T = char>
-    T *Allocate(size_t count)
+    T *Allocate(size_t count) noexcept
     {
         if (count == 0) {
             return nullptr;
@@ -45,7 +45,7 @@ public:
         return allocated;
     }
 
-    void Free()
+    void Free() noexcept
     {
         cur_ = base_;
     }
@@ -54,7 +54,7 @@ public:
      * @brief Method should check in @param ptr is pointer to mem from this allocator
      * @returns true if ptr is from this allocator
      */
-    bool VerifyPtr(void *ptr)
+    bool VerifyPtr(void *ptr) noexcept
     {
         return base_ <= ptr && ptr < GetUpperBound();
     }
