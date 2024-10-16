@@ -8,6 +8,9 @@
 template <class T>
 class Object;
 
+template <class T>
+class ObjectWrapper;
+
 class MarkWord;
 class KlassWord;
 class ObjectHeader;
@@ -15,135 +18,65 @@ class ObjectHeader;
 class MarkWord
 {
 public:
-    MarkWord() : refCount_(new size_t{1}) {}
-    explicit MarkWord(std::nullptr_t) {}
-        
-    MarkWord([[maybe_unused]] const MarkWord &other) : refCount_(other.refCount_)
-    {
-        SetRefCount(GetRefCount() + 1);
-    }
-
-    MarkWord &operator=([[maybe_unused]] const MarkWord &other)
-    {
-        if (this == &other)
-        {
-            return *this;
-        }
-    
-        RefCountDtor();
-
-        refCount_ = other.refCount_;
-        SetRefCount(GetRefCount() + 1);
-
-        return *this;
-    }
-
-    MarkWord(MarkWord &&other)
-    {
-        std::swap(refCount_, other.refCount_);
-    }
-
-    MarkWord &operator=([[maybe_unused]] MarkWord &&other)
-    {
-        if (this != &other)
-        {
-            std::swap(refCount_, other.refCount_);
-        }
-
-        return *this;
-    }
-
-    ~MarkWord() 
-    {
-        RefCountDtor();
-    }
-
     size_t GetRefCount() const
     {
-        if (refCount_ == nullptr)
-        {
-            return 0;
-        }
+        return refCount_;
+    }
 
-        return *refCount_;
+    void SetRefCount(const size_t refCount)
+    {
+        refCount_ = refCount;
     }
 
 private:
-    void SetRefCount(const size_t refCount)
-    {
-        if (refCount_ == nullptr)
-        {
-            return;
-        }
-
-        *refCount_ = refCount;
-    }
-
-    void RefCountDtor()
-    {
-        if (GetRefCount() <= 1)
-        {
-            delete refCount_;
-            refCount_ = nullptr;
-        }
-        else
-        {
-            SetRefCount(GetRefCount() - 1);
-        }
-    }
-
-    size_t *refCount_ = nullptr;
+    size_t refCount_;
 };
 
 class ObjectHeader
 {
 public:
-    ObjectHeader() = default;
-    ~ObjectHeader() = default;
-
-    explicit ObjectHeader(std::nullptr_t) : markWord_(nullptr) {}
-
-    ObjectHeader([[maybe_unused]] const ObjectHeader &other) = default;
-
-    ObjectHeader &operator=([[maybe_unused]] const ObjectHeader &other)
-    {
-        if (this != &other)
-        {
-            markWord_ = other.markWord_;
-        }
-
-        return *this;
-    }
-
-    ObjectHeader(ObjectHeader &&other)
-    {
-        std::swap(markWord_, other.markWord_);
-    }
-
-    ObjectHeader &operator=([[maybe_unused]] ObjectHeader &&other)
-    {
-        if (this != &other)
-        {
-            std::swap(markWord_, other.markWord_);
-        }
-
-        return *this;
-    }
-    
     size_t GetRefCount() const
     {
         return markWord_.GetRefCount();
+    }
+
+    void SetRefCount(const size_t refCount)
+    {
+        markWord_.SetRefCount(refCount);
     }
 
 private:
     MarkWord markWord_;
 };
 
+template <class T>
+class ObjectWrapper {
+public:
+
+    size_t GetRefCount() const
+    {
+        return objectHeader_.GetRefCount();
+    }
+    
+    void SetRefCount(const size_t refCount)
+    {
+        objectHeader_.SetRefCount(refCount);
+    }
+
+private:
+    ObjectHeader objectHeader_;
+public:
+    T objectData_;
+};
+
+
 template <class T, class... Args>
 static Object<T> MakeObject([[maybe_unused]] Args... args)
 {
-    T *temp = new T{args...};
-    Object<T> obj{temp};
+    ObjectWrapper<T> *tempWrapper = new ObjectWrapper<T>;
+    T *data = new (tempWrapper + sizeof(ObjectHeader)) T{args...};
+    tempWrapper->SetRefCount(1);
+    Object<T> obj{tempWrapper};
     return obj;
 }
 
@@ -151,21 +84,23 @@ template <class T>
 class Object {
 public:
 
-    Object() : objectData_(nullptr), objectHeader_(nullptr) {}
-    explicit Object(std::nullptr_t) : objectData_(nullptr), objectHeader_(nullptr) {}
+    Object() : objectWrapper_(nullptr) {}
+    explicit Object(std::nullptr_t) : objectWrapper_(nullptr) {}
+    
+    Object(T *ptr) = delete;
 
-    explicit Object([[maybe_unused]] T *ptr) : objectData_(ptr) {}
+    explicit Object([[maybe_unused]] ObjectWrapper<T> *wrapper) : objectWrapper_(wrapper) {}
 
     ~Object()
     {
-        if (UseCount() <= 1)
-        {
-            delete objectData_;
-        }
+        RefCountDtor();
     }
 
     // copy semantic
-    Object([[maybe_unused]] const Object<T> &other) : objectData_(other.objectData_), objectHeader_(other.objectHeader_) {}
+    Object([[maybe_unused]] const Object<T> &other) : objectWrapper_(other.objectWrapper_)
+    {
+        SetRefCount(UseCount() + 1);
+    }
 
     // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     Object<T> &operator=([[maybe_unused]] const Object<T> &other)
@@ -174,14 +109,10 @@ public:
         {
             return *this;
         }
-
-        if (UseCount() <= 1)
-        {
-            delete objectData_;
-        }
-
-        objectData_ = other.objectData_;
-        objectHeader_ = other.objectHeader_;
+        
+        RefCountDtor();
+        objectWrapper_ = other.objectWrapper_;
+        SetRefCount(UseCount() + 1);
 
         return *this;
     }
@@ -189,16 +120,16 @@ public:
     // move semantic
     Object([[maybe_unused]] Object<T> &&other)
     {
-        std::swap(objectHeader_, other.objectHeader_);
-        std::swap(objectData_, other.objectData_);
+        objectWrapper_ = other.objectWrapper_;
+        other.objectWrapper_ = nullptr;
     }
 
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
         if (this != &other)
         {
-            std::swap(objectHeader_, other.objectHeader_);
-            std::swap(objectData_, other.objectData_);
+            objectWrapper_ = other.objectWrapper_;
+            other.objectWrapper_ = nullptr;
         }
 
         return *this;
@@ -207,22 +138,27 @@ public:
     // member access operators
     T &operator*() const noexcept
     {
-        return *objectData_;
+        return *(reinterpret_cast<T*>(objectWrapper_ + sizeof(ObjectHeader)));
     }
 
     T *operator->() const noexcept
     {
-        return objectData_;
+        return reinterpret_cast<T*>(objectWrapper_ + sizeof(ObjectHeader));
     }
 
     size_t UseCount() const
     {
-        return objectHeader_.GetRefCount();
+        if (objectWrapper_ == nullptr)
+        {
+            return 0;
+        }
+
+        return objectWrapper_->GetRefCount();
     }
 
     bool operator==([[maybe_unused]] const Object<T> other) const
     {
-        return (this->objectData_ == other.objectData_);
+        return (this->objectWrapper_ == other.objectWrapper_);
     }
 
     bool operator!=(const Object<T> other) const
@@ -232,18 +168,35 @@ public:
 
     bool operator==(std::nullptr_t) const
     {
-        return (objectData_ == nullptr);
+        return (objectWrapper_ == nullptr);
     }
 
     bool operator!=(std::nullptr_t) const
     {
-        return (objectData_ != nullptr);
+        return (objectWrapper_ != nullptr);
     }
 
 private:
 
-    ObjectHeader objectHeader_; 
-    T *objectData_ = nullptr;
+    void RefCountDtor()
+    {
+        if (UseCount() <= 1)
+        {
+            delete objectWrapper_;
+        }
+        else
+        {
+            SetRefCount(UseCount() - 1);
+        }
+        objectWrapper_ = nullptr;
+    }
+    
+    void SetRefCount(const size_t refCount)
+    {
+        objectWrapper_->SetRefCount(refCount);
+    }
+
+    ObjectWrapper<T> *objectWrapper_;
 };
 
 #endif  // MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODLE_H
