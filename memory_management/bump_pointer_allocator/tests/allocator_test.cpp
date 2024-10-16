@@ -30,7 +30,7 @@ TEST(BumpAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefi
     auto *mem = allocator.Allocate<char>(COUNT_TO_ALLOC);
     ASSERT_TRUE(allocator.VerifyPtr(mem));
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    ASSERT_FALSE(allocator.VerifyPtr(mem + 64U));  // in should be false becase you can not allocate mem with 0 size
+    ASSERT_FALSE(allocator.VerifyPtr(mem + 64U));
 
     ASSERT_EQ(allocator.Allocate<char>(5U), nullptr);
     allocator.Free();
