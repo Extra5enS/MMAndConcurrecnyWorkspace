@@ -20,18 +20,55 @@ class FreeListAllocator {
 
         FreeListMemoryPool()
         {
-            if (listHead_ == nullptr) {
+            if (freeListHead_ == nullptr) {
                 throw std::bad_alloc();
             }
+            freeListHead_->size = CalculateCapacity();
+            freeListHead_->next = freeListHead_ + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         }
 
-        char *Allocate(size_t size) {}
+        char *Allocate(size_t size)
+        {
+            Block *prevBlock = nullptr;
+            Block *block = freeListHead_;
+
+            while (block && block->size + sizeof(Block) < size) {
+                prevBlock = block;
+                block = block->next;
+            }
+
+            if (block == nullptr) {
+                return nullptr;
+            }
+
+            char *allocated = reinterpret_cast<char *>(block) + sizeof(Block);
+
+            Block *nextFreeBlock = block->next;
+
+            if (block->size < size + sizeof(Block)) {
+                nextFreeBlock = reinterpret_cast<Block *>(allocated + size);
+                nextFreeBlock->size = block->size - size - sizeof(Block);
+                nextFreeBlock->next = block->next;
+            }
+
+            if (prevBlock) {
+                prevBlock->next = nextFreeBlock;
+            }
+
+            if (freeListHead_ == block) {
+                freeListHead_ = nextFreeBlock;
+            }
+
+            block->next = nullptr;
+            block->size = size + sizeof(Block);
+
+            return allocated;
+        }
 
     private:
-        size_t capacity_ = CalculateCapacity();
-        Block *listHead_ = reinterpret_cast<Block *>(
+        Block *freeListHead_ = reinterpret_cast<Block *>(
             // NOLINTNEXTLINE(modernize-use-nullptr)
-            mmap(NULL, capacity_, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+            mmap(NULL, CalculateCapacity(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
 
         size_t CalculateCapacity() const noexcept
         {
