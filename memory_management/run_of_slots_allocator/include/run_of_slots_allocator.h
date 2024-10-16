@@ -27,7 +27,7 @@ public:
         return nullptr;
     }
 
-    void Free(void *ptr)
+    void Free([[maybe_unused]]void *ptr)
     {
         // TODO(you): Add your implementation here...
     }

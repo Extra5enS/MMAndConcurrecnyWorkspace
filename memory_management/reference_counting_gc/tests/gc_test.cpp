@@ -78,8 +78,8 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
         obj3 = std::move(obj2);
         ASSERT_EQ(obj3.UseCount(), 2U);
         ASSERT_EQ(obj3.Get(), obj1.Get());
-        ASSERT_EQ(obj2.Get(), nullptr);
-        ASSERT_EQ(obj2.UseCount(), 0U);
+        ASSERT_EQ(obj2.Get(), nullptr); // NOLINT(bugprone-use-after-move, clang-analyzer-cplusplus.Move)
+        ASSERT_EQ(obj2.UseCount(), 0U); // NOLINT(bugprone-use-after-move, clang-analyzer-cplusplus.Move)
     }
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
