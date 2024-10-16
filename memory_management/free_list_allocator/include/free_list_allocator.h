@@ -19,13 +19,13 @@ public:
     NO_COPY_SEMANTIC(FreeListAllocator);
 
     template <class T = uint8_t>
-    T *Allocate([[maybe_unused]]size_t count)
+    T *Allocate([[maybe_unused]] size_t count)
     {
         // TODO(you): Add your implementation here...
         return nullptr;
     }
 
-    void Free(void *ptr)
+    void Free([[maybe_unused]] void *ptr)
     {
         // TODO(you): Add your implementation here...
     }
