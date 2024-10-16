@@ -17,7 +17,9 @@ class FreeListAllocator {
             size_t size;
             Block *next;
         };
+        static constexpr Block *OCCUPIED_BLOCK = reinterpret_cast<Block *>(-1);
 
+    public:
         FreeListMemoryPool()
         {
             if (freeListHead_ == nullptr) {
@@ -41,11 +43,13 @@ class FreeListAllocator {
                 return nullptr;
             }
 
-            char *allocated = reinterpret_cast<char *>(block) + sizeof(Block);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            auto allocated = reinterpret_cast<char *>(block) + sizeof(Block);
 
             Block *nextFreeBlock = block->next;
 
             if (block->size < size + sizeof(Block)) {
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
                 nextFreeBlock = reinterpret_cast<Block *>(allocated + size);
                 nextFreeBlock->size = block->size - size - sizeof(Block);
                 nextFreeBlock->next = block->next;
@@ -59,16 +63,49 @@ class FreeListAllocator {
                 freeListHead_ = nextFreeBlock;
             }
 
-            block->next = nullptr;
+            block->next = OCCUPIED_BLOCK;
             block->size = size + sizeof(Block);
 
             return allocated;
         }
 
+        void Free(void *ptr) noexcept
+        {
+            if (ptr == nullptr) {
+                return;
+            }
+
+            if (!VerifyPtr(ptr)) {
+                return;
+            }
+
+            Block *block = reinterpret_cast<Block *>(ptr);
+
+            block->next = freeListHead_;
+            freeListHead_ = block;
+        }
+
+        bool VerifyPtr(const void *ptr) const noexcept
+        {
+            if (ptr == nullptr) {
+                return false;
+            }
+
+            auto block = reinterpret_cast<Block *>(ptr);
+
+            if (block->next != OCCUPIED_BLOCK) {
+                return false;
+            }
+
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            return base_ <= ptr && reinterpret_cast<const char *>(ptr) + sizeof(Block) < upperBound_;
+        }
+
     private:
-        Block *freeListHead_ = reinterpret_cast<Block *>(
-            // NOLINTNEXTLINE(modernize-use-nullptr)
-            mmap(NULL, CalculateCapacity(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+        // NOLINTNEXTLINE(modernize-use-nullptr)
+        void *base_ = mmap(NULL, CalculateCapacity(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        const void *const upperBound_ = base_ + CalculateCapacity();
+        Block *freeListHead_ = reinterpret_cast<Block *>(base_);
 
         size_t CalculateCapacity() const noexcept
         {
