@@ -24,8 +24,8 @@ RUN apt install clang-format-14 -y
 RUN apt install clangd-14 -y
 RUN apt install python3 -y
 
-RUN echo 'alias clang="clang-14"' >> ~/.bashrc
-RUN echo 'alias clang++="clang++-14"' >> ~/.bashrc
+RUN ln -s /usr/bin/clang-14 /usr/bin/clang
+RUN ln -s /usr/bin/clang++-14 /usr/bin/clang++
 
 # Set the working directory
 WORKDIR $PROJECT_PATH
@@ -37,4 +37,4 @@ COPY . .
 # EXPOSE 8080
 
 # Command to run when the container starts (optional)
-CMD ["./FOR_DOCKER_RUN_CLANG_TIDY.sh"]
+CMD ["scripts/codestyle/FOR_DOCKER_RUN_CLANG_TIDY.sh"]
