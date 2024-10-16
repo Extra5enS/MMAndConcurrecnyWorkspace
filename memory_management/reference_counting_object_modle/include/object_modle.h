@@ -30,15 +30,7 @@ public:
             return *this;
         }
     
-        if (GetRefCount() <= 1)
-        {
-            delete refCount_;
-            refCount_ = nullptr;
-        }
-        else
-        {
-            SetRefCount(GetRefCount() - 1);
-        }
+        RefCountDtor();
 
         refCount_ = other.refCount_;
         SetRefCount(GetRefCount() + 1);
@@ -63,15 +55,7 @@ public:
 
     ~MarkWord() 
     {
-        if (GetRefCount() <= 1)
-        {
-            delete refCount_;
-            refCount_ = nullptr;
-        }
-        else
-        {
-            SetRefCount(GetRefCount() - 1);
-        }
+        RefCountDtor();
     }
 
     size_t GetRefCount() const
@@ -93,6 +77,19 @@ private:
         }
 
         *refCount_ = refCount;
+    }
+
+    void RefCountDtor()
+    {
+        if (GetRefCount() <= 1)
+        {
+            delete refCount_;
+            refCount_ = nullptr;
+        }
+        else
+        {
+            SetRefCount(GetRefCount() - 1);
+        }
     }
 
     size_t *refCount_ = nullptr;
@@ -243,21 +240,8 @@ public:
         return (objectData_ != nullptr);
     }
 
-    void Dump() const
-    {
-        if (objectData_ != nullptr)
-        {
-            std::cout << "Object data is " << objectData_ << std::endl;
-        }
-        else
-        {
-            std::cout << "Object data is nullptr" << std::endl;
-        }
-
-        std::cout << "Reference count is " << UseCount() << std::endl;
-    }
-
 private:
+
     ObjectHeader objectHeader_; 
     T *objectData_ = nullptr;
 };
