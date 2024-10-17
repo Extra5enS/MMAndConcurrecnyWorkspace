@@ -3,21 +3,7 @@
 
 #include <cstddef>
 #include <utility>
-#include <exception>
-
-class NullptrAccessException : public std::exception {
-    const char *message_ = "Nullptr Access Exception";
-
-public:
-    NullptrAccessException() noexcept = default;
-
-    explicit NullptrAccessException(const char *message) noexcept : message_(message) {}
-
-    const char *what() const noexcept override
-    {
-        return message_;
-    }
-};
+#include <stdexcept>
 
 template <class T>
 class Object;
@@ -81,15 +67,17 @@ public:
 
     T &operator*() const
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (hdr_ == nullptr) {
-            throw NullptrAccessException();
+            throw std::runtime_error("Nullptr access exception!");
         }
         return *GetValue();
     }
 
-    T *operator->() const noexcept
+    T *operator->() const
     {
+        if (hdr_ == nullptr) {
+            throw std::runtime_error("Nullptr access exception!");
+        }
         return GetValue();
     }
 
@@ -137,7 +125,7 @@ private:
     T *GetValue() const noexcept
     {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        return reinterpret_cast<T *>(reinterpret_cast<char *>(hdr_) + sizeof(Header));
+        return reinterpret_cast<T *>(hdr_ + 1);
     }
 };
 
