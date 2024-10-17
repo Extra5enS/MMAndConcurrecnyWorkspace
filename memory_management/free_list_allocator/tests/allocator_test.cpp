@@ -2,6 +2,8 @@
 #include <cstddef>
 #include "memory_management/free_list_allocator/include/free_list_allocator.h"
 
+LOG_INIT_FILE("log.txt");
+
 TEST(FreeListAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 4048U;
