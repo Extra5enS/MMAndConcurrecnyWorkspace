@@ -55,7 +55,7 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
     size_t *ptr = obj1.Get();
     {
-        Object<size_t> obj2(std::move(obj1));
+        Object<size_t> obj2(std::move(obj1)); 
         ASSERT_EQ(obj2.UseCount(), 1U);
         ASSERT_EQ(obj2.Get(), ptr);
         obj1 = obj2;

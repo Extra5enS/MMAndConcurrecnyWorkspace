@@ -9,8 +9,8 @@ template <size_t ONE_MEM_POOL_SIZE, size_t... SLOTS_SIZES>
 class RunOfSlotsAllocator {
     static_assert(sizeof...(SLOTS_SIZES) != 0, "you should set slots sizes");
 
-    // here we recommend you to use class MemoryPool to create RunOfSlots for 1 size. Use new to allocate them from heap.
-    // remember, you can not use any containers with heap allocations
+    // here we recommend you to use class MemoryPool to create RunOfSlots for 1 size. Use new to allocate them from
+    // heap. remember, you can not use any containers with heap allocations
     template <size_t MEM_POOL_SIZE, size_t SLOT_SIZE>
     class RunOfSlotsMemoryPool;
 
@@ -27,7 +27,7 @@ public:
         return nullptr;
     }
 
-    void Free([[maybe_unused]]void *ptr)
+    void Free([[maybe_unused]] void *ptr)
     {
         // TODO(you): Add your implementation here...
     }
