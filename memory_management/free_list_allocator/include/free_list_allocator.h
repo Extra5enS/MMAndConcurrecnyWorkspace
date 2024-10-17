@@ -5,6 +5,7 @@
 #include <new>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <cstdint>
 #include "base/macros.h"
 
 #include "Error.hpp"
@@ -16,11 +17,16 @@ class FreeListAllocator {
     class FreeListMemoryPool {
         friend class FreeListAllocator;
 
-        struct Block {
-            Block *next;
+        struct FreeBlockHeader {
+            size_t size;
+            FreeBlockHeader *next;
+        };
+
+        struct OccupiedBlockHeader {
             size_t size;
         };
-        static constexpr Block *OCCUPIED_BLOCK = nullptr;
+
+        static constexpr FreeBlockHeader *OCCUPIED_BLOCK = nullptr;
 
     public:
         FreeListMemoryPool() noexcept
@@ -31,13 +37,13 @@ class FreeListAllocator {
 
         char *Allocate(size_t size) noexcept
         {
-            Block *prevBlock = nullptr;
-            Block *block = freeListHead_;
+            FreeBlockHeader *prevBlock = nullptr;
+            FreeBlockHeader *block = freeListHead_;
 
             LOG("----------------------------------\n");
             LOG("Start allocation of %zu bytes.\n", size);
 
-            while (block && block->size < size + sizeof(Block)) {
+            while (block && block->size < size) {
                 prevBlock = block;
                 block = block->next;
                 LOG("block = %p\n", block);
@@ -55,17 +61,19 @@ class FreeListAllocator {
             }
 
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            auto allocated = reinterpret_cast<char *>(block) + sizeof(Block);
+            auto allocated = reinterpret_cast<char *>(block) + sizeof(OccupiedBlockHeader);
 
             LOG("Allocated %p\n", allocated);
 
-            Block *nextFreeBlock = block->next;
+            FreeBlockHeader *nextFreeBlock = block->next;
 
-            if (block->size >= size + sizeof(Block)) {
+            if (block->size >= size + sizeof(FreeBlockHeader)) {
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
                 LOG("This block has spare space. Making a new block here.\n");
-                nextFreeBlock = reinterpret_cast<Block *>(allocated + size);
-                nextFreeBlock->size = block->size - size - sizeof(Block);
+                ptrdiff_t shift = GetBlockPtrAlignmentShift(allocated + size);
+
+                nextFreeBlock = reinterpret_cast<FreeBlockHeader *>(allocated + size + shift);
+                nextFreeBlock->size = block->size - size - shift;
                 nextFreeBlock->next = block->next;
             }
 
@@ -80,8 +88,7 @@ class FreeListAllocator {
                 LOG("New freeListHead_ = %p\n", freeListHead_);
             }
 
-            block->next = OCCUPIED_BLOCK;
-            block->size = size + sizeof(Block);
+            reinterpret_cast<OccupiedBlockHeader *>(block)->size = size;
 
             LOG("Allocation successfull!\n");
             LOG("----------------------------------\n");
@@ -102,7 +109,7 @@ class FreeListAllocator {
             LOG("----------------------------------\n");
             LOG("Free ptr[%p]\n", ptr);
 
-            Block *block = reinterpret_cast<Block *>(ptr);
+            FreeBlockHeader *block = reinterpret_cast<FreeBlockHeader *>(ptr);
 
             block->next = freeListHead_;
             freeListHead_ = block;
@@ -126,7 +133,7 @@ class FreeListAllocator {
                 return false;
             }
 
-            auto block = reinterpret_cast<const Block *>(ptr);
+            auto block = reinterpret_cast<const FreeBlockHeader *>(ptr);
 
             if (block->next != OCCUPIED_BLOCK) {
                 return false;
@@ -134,13 +141,25 @@ class FreeListAllocator {
 
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             auto base = reinterpret_cast<const char *>(this);
-            return this <= ptr && reinterpret_cast<const char *>(ptr) + sizeof(Block) < base + CalculateCapacity();
+            return this <= ptr &&
+                   reinterpret_cast<const char *>(ptr) + sizeof(FreeBlockHeader) < base + CalculateCapacity();
         }
 
     private:
         // NOLINTNEXTLINE(modernize-use-nullptr)
         FreeListMemoryPool *nextPool = nullptr;
-        Block *freeListHead_ = reinterpret_cast<Block *>(this + sizeof(Block));
+        FreeBlockHeader *freeListHead_ = reinterpret_cast<FreeBlockHeader *>(this + sizeof(FreeBlockHeader));
+
+        static ptrdiff_t GetBlockPtrAlignmentShift(const char *ptr) noexcept
+        {
+            uintptr_t szptr = reinterpret_cast<size_t>(ptr);
+            uintptr_t mod = szptr % alignof(FreeBlockHeader);
+
+            if (mod == 0)
+                return 0;
+
+            return alignof(FreeBlockHeader) - mod;
+        }
     };
 
 public:
@@ -214,8 +233,7 @@ public:
 
         MemPool *pool = firstPool_;
 
-        while (pool)
-        {
+        while (pool) {
             if (pool->VerifyPtr(ptr))
                 return true;
             pool = pool->nextPool;
