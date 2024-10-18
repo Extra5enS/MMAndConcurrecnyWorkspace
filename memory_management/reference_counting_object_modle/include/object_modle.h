@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <bit>
 
 template <class T>
 class Object;
@@ -18,6 +19,9 @@ class ObjectHeader;
 class MarkWord
 {
 public:
+    MarkWord() : refCount_(1) {}
+    ~MarkWord() = default;
+
     size_t GetRefCount() const
     {
         return refCount_;
@@ -35,6 +39,9 @@ private:
 class ObjectHeader
 {
 public:
+    ObjectHeader() = default;
+    ~ObjectHeader() = default;
+
     size_t GetRefCount() const
     {
         return markWord_.GetRefCount();
@@ -52,6 +59,8 @@ private:
 template <class T>
 class ObjectWrapper {
 public:
+    ObjectWrapper() = default;
+    ~ObjectWrapper() = default;
 
     size_t GetRefCount() const
     {
@@ -63,9 +72,7 @@ public:
         objectHeader_.SetRefCount(refCount);
     }
 
-private:
     ObjectHeader objectHeader_;
-public:
     T objectData_;
 };
 
@@ -73,10 +80,10 @@ public:
 template <class T, class... Args>
 static Object<T> MakeObject([[maybe_unused]] Args... args)
 {
-    ObjectWrapper<T> *tempWrapper = new ObjectWrapper<T>;
-    T *data = new (tempWrapper + sizeof(ObjectHeader)) T{args...};
-    tempWrapper->SetRefCount(1);
-    Object<T> obj{tempWrapper};
+    ObjectWrapper<T> *wrapper = new ObjectWrapper<T>();
+    T *data = new (wrapper + sizeof(ObjectHeader)) T{args...};
+    Object<T> obj{wrapper};
+
     return obj;
 }
 
@@ -84,7 +91,10 @@ template <class T>
 class Object {
 public:
 
-    Object() : objectWrapper_(nullptr) {}
+    Object() : objectWrapper_(nullptr)// objectWrapper_(new ObjectWrapper<T>())
+    {
+        // SetRefCount(0);
+    }
     explicit Object(std::nullptr_t) : objectWrapper_(nullptr) {}
     
     Object(T *ptr) = delete;
@@ -120,6 +130,7 @@ public:
     // move semantic
     Object([[maybe_unused]] Object<T> &&other)
     {
+        // std::swap(objectWrapper_, other.objectWrapper_);
         objectWrapper_ = other.objectWrapper_;
         other.objectWrapper_ = nullptr;
     }
@@ -128,6 +139,9 @@ public:
     {
         if (this != &other)
         {
+            // std::swap(objectWrapper_, other.objectWrapper_);
+            // std::swap(objectWrapper_->objectData_, other.objectWrapper_->objectData_);
+            // std::swap(*objectWrapper_, *(other.objectWrapper_));
             objectWrapper_ = other.objectWrapper_;
             other.objectWrapper_ = nullptr;
         }
@@ -138,12 +152,14 @@ public:
     // member access operators
     T &operator*() const noexcept
     {
-        return *(reinterpret_cast<T*>(objectWrapper_ + sizeof(ObjectHeader)));
+        return *((T*) (objectWrapper_ + sizeof(ObjectHeader)));
+        // (objectWrapper_->objectData_);
     }
 
     T *operator->() const noexcept
     {
-        return reinterpret_cast<T*>(objectWrapper_ + sizeof(ObjectHeader));
+        return (T*) (objectWrapper_ + sizeof(ObjectHeader));//reinterpret_cast<T*>(objectWrapper_ + sizeof(ObjectHeader));
+        // &(objectWrapper_->objectData_);
     }
 
     size_t UseCount() const
