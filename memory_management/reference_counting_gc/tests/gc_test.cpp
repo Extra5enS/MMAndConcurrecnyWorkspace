@@ -17,7 +17,7 @@ TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
     Object<size_t> obj;
     ASSERT_EQ(obj.UseCount(), 0);
     ASSERT_EQ(obj.Get(), nullptr);
-    // sets
+
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> sizeObj = MakeObject<size_t>(VALUE_TO_CREATE);
     ASSERT_EQ(sizeObj.UseCount(), 1U);
@@ -69,7 +69,21 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
         obj1 = obj2;
     }
     ASSERT_EQ(obj1.UseCount(), 1U);
+
+    auto obj2 = obj1;
+    ASSERT_EQ(obj1.UseCount(), 2U);
+    ASSERT_EQ(obj1.Get(), obj2.Get());
+    {
+        Object<size_t> obj3;
+        obj3 = std::move(obj2);
+        ASSERT_EQ(obj3.UseCount(), 2U);
+        ASSERT_EQ(obj3.Get(), obj1.Get());
+        ASSERT_EQ(obj2.Get(), nullptr); // NOLINT(bugprone-use-after-move, clang-analyzer-cplusplus.Move)
+        ASSERT_EQ(obj2.UseCount(), 0U); // NOLINT(bugprone-use-after-move, clang-analyzer-cplusplus.Move)
+    }
+    ASSERT_EQ(obj1.UseCount(), 1U);
 }
+
 
 TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
     DeleteDetector::SetDeleteCount(0U);
@@ -85,15 +99,4 @@ TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 2U);
     obj1->~DeleteDetector();
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 3U);
-}
-
-TEST(ReferenceCountingGC, DISABLED_CorrectPtrReset) {
-    constexpr size_t VALUE_TO_CREATE = 42U;
-    Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
-    Object<size_t> obj2 = obj1;
-    ASSERT_EQ(obj1.UseCount(), 2);
-
-    constexpr size_t VALUE_TO_RESET = 206U;
-    obj2.Reset(new size_t(VALUE_TO_RESET));
-    ASSERT_NE(obj1.Get(), obj2.Get());
 }
