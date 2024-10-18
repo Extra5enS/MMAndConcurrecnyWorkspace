@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <utility>
-#include <stdexcept>
 
 template <class T>
 class Object;
@@ -65,23 +64,27 @@ public:
         return *this;
     }
 
-    T &operator*() const
+    T &operator*() noexcept
     {
-        if (hdr_ == nullptr) {
-            throw std::runtime_error("Nullptr access exception!");
-        }
         return *GetValue();
     }
 
-    T *operator->() const
+    const T &operator*() const noexcept
     {
-        if (hdr_ == nullptr) {
-            throw std::runtime_error("Nullptr access exception!");
-        }
+        return *GetValue();
+    }
+
+    T *operator->() noexcept
+    {
         return GetValue();
     }
 
-    size_t UseCount() const
+    const T *operator->() const noexcept
+    {
+        return GetValue();
+    }
+
+    size_t UseCount() const noexcept
     {
         if (hdr_ == nullptr) {
             return 0;
@@ -134,15 +137,13 @@ Object<T> MakeObject(Args &&...args)
 {
     using Header = typename Object<T>::Header;
 
-    char *headerChr = new char[sizeof(Header) + sizeof(T)];
-    if (headerChr == nullptr) {
+    auto *header = reinterpret_cast<Header *>(new char[sizeof(Header) + sizeof(T)]);
+    if (header == nullptr) {
         return {};
     }
 
-    auto header = reinterpret_cast<Header *>(headerChr);
-
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    new (headerChr + sizeof(Header)) T(std::forward<Args>(args)...);
+    new (header + 1) T(std::forward<Args>(args)...);
 
     header->rc = 1;
 
