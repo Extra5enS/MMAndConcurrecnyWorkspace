@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.10)
 project(MMAndConcurrency)
 
@@ -17,19 +16,19 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-set(CMAKE_CXX_FLAGS -pthread)
-
-
 # Cody style
 include(cmake/ClangTidy.cmake)
 
-# Testing framework 
+# Testing framework
 include(cmake/TestFramework.cmake)
+
+# Flags
+include(cmake/Flags.cmake)
 
 # include root for clear include path usage
 include_directories(${PROJECT_ROOT})
 
-# Testing 
+# Testing
 add_subdirectory(${PROJECT_ROOT}/memory_management/bump_pointer_allocator)
 add_subdirectory(${PROJECT_ROOT}/memory_management/run_of_slots_allocator)
 add_subdirectory(${PROJECT_ROOT}/memory_management/free_list_allocator)
