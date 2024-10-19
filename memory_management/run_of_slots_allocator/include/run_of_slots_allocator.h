@@ -198,7 +198,7 @@ public:
         return static_cast<T*>(nullptr);
     }
 
-    void Free(void *ptr)
+    void Free([[maybe_unused]] void *ptr)
     {
         if (ptr == nullptr)
         {
