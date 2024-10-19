@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "memory_management/bump_pointer_allocator/include/bump_pointer_allocator.h"
 
-TEST(BumpAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ prefix to use test
+TEST(BumpAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 4048U;
     BumpPointerAllocator<MEMORY_POOL_SIZE> allocator;
@@ -22,7 +22,7 @@ TEST(BumpAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ pr
     ASSERT_EQ(allocator.Allocate<char>(0), nullptr);  // you can not allocate memory with 0 size
 }
 
-TEST(BumpAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
+TEST(BumpAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 64U;
     BumpPointerAllocator<MEMORY_POOL_SIZE> allocator;
@@ -31,7 +31,7 @@ TEST(BumpAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABL
     auto *mem = allocator.Allocate<char>(COUNT_TO_ALLOC);
     ASSERT_TRUE(allocator.VerifyPtr(mem));
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    ASSERT_FALSE(allocator.VerifyPtr(mem + 1U));  // in should be false becase you can not allocate mem with 0 size
+    ASSERT_FALSE(allocator.VerifyPtr(mem + 64U));  // in should be false becase you can not allocate mem with 0 size
 
     ASSERT_EQ(allocator.Allocate<char>(5U), nullptr);
     allocator.Free();
