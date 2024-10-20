@@ -69,8 +69,7 @@ private:
     char *GetUpperBound() const noexcept
     {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        static char *upperBound = base_ + MEMORY_POOL_SIZE;
-        return upperBound;
+        return base_ + MEMORY_POOL_SIZE;
     }
 };
 
