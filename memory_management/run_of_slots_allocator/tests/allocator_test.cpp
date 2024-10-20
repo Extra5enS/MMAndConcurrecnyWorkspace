@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "memory_management/run_of_slots_allocator/include/run_of_slots_allocator.h"
 
-TEST(RunOfSlotsAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ prefix to use test
+TEST(RunOfSlotsAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 2048U;
     RunOfSlotsAllocator<MEMORY_POOL_SIZE, 1U, 2U, 4U, 8U> allocator;
@@ -15,7 +15,6 @@ TEST(RunOfSlotsAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABL
     ASSERT_NE(size2, nullptr);
     ASSERT_TRUE(allocator.VerifyPtr(size2));
     ASSERT_EQ(size_t(size2) - size_t(size1), sizeof(size_t));
-
     auto *int1 = allocator.Allocate<int>();
     ASSERT_NE(int1, nullptr);
     ASSERT_TRUE(allocator.VerifyPtr(int1));
@@ -27,7 +26,7 @@ TEST(RunOfSlotsAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABL
     allocator.Free(int1);
 }
 
-TEST(RunOfSlotsAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
+TEST(RunOfSlotsAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 8U;
     RunOfSlotsAllocator<MEMORY_POOL_SIZE, 1U, 2U, 4U, 8U> allocator;
