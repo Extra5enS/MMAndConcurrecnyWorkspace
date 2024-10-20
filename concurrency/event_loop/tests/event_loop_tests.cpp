@@ -31,7 +31,7 @@ TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
 TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
     std::string str;
     {
-        EventLoopScope scope;
+        EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
         EventLoopScope::AddCallback([&str]() {
             str += "A";
         });
@@ -39,7 +39,7 @@ TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
             str += "B";
         });
         {
-            EventLoopScope scope;
+            EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
             EventLoopScope::AddCallback([&str]() {
                 str += "C";
             });

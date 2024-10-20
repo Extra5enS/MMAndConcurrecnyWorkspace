@@ -39,3 +39,4 @@ add_subdirectory(${PROJECT_ROOT}/memory_management/reference_counting_object_mod
 add_subdirectory(${PROJECT_ROOT}/concurrency/thread_safe_containers)
 add_subdirectory(${PROJECT_ROOT}/concurrency/event_loop)
 add_subdirectory(${PROJECT_ROOT}/concurrency/thread_pool)
+add_subdirectory(${PROJECT_ROOT}/concurrency/lock_free_stack)

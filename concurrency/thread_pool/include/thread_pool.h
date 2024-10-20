@@ -14,7 +14,7 @@ public:
     NO_MOVE_SEMANTIC(ThreadPool);
 
     template<class Task, class... Args>
-    void PostTask(Task task, Args... args) {
+    void PostTask([[maybe_unused]] Task task, [[maybe_unused]] Args... args) {
         // impl
     }
 

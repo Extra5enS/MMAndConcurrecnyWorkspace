@@ -16,7 +16,7 @@ public:
     NO_COPY_SEMANTIC(EventLoop);    
     
     template<class Callback, class... Args>
-    void AddCallback(Callback callback, Args... args) {
+    void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
         // impl
     }
 private:
