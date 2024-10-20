@@ -28,7 +28,7 @@ TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
     ASSERT_EQ(str, "AB");
 }
 
-TEST(ThreadSafeQueueTest, DISABLED_EventLoopScopeTest) {
+TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
     std::string str;
     {
         EventLoopScope scope;
