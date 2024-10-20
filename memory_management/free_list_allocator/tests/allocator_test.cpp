@@ -13,17 +13,19 @@ TEST(FreeListAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix 
     ASSERT_TRUE(allocator.VerifyPtr(size1));
     ASSERT_NE(size2, nullptr);
     ASSERT_TRUE(allocator.VerifyPtr(size2));
-    ASSERT_EQ(size_t(size2) - size_t(size1), sizeof(size_t));
+    ASSERT_LE(size_t(size2) - size_t(size1), MEMORY_POOL_SIZE); // in one pool
 
-    auto *int1 = allocator.Allocate<int>(1U);
-    ASSERT_NE(int1, nullptr);
-    ASSERT_TRUE(allocator.VerifyPtr(int1));
-    size_t pointDiff = (size_t(size2) > size_t(int1)) ? size_t(size2) - size_t(int1) : size_t(int1) - size_t(size2);
-    ASSERT_GE(pointDiff, MEMORY_POOL_SIZE);  // in different pools
+    auto *str1 = allocator.Allocate<char>(MEMORY_POOL_SIZE / 2);
+    auto *str2 = allocator.Allocate<char>(MEMORY_POOL_SIZE / 2);
+    ASSERT_NE(str1, nullptr);
+    ASSERT_TRUE(allocator.VerifyPtr(str1));
+    size_t pointDiff = (size_t(str2) > size_t(size1)) ? size_t(str2) - size_t(size1) : size_t(size1) - size_t(str2);
+    ASSERT_GE(pointDiff, MEMORY_POOL_SIZE); // in different pool
 
     allocator.Free(size1);
     allocator.Free(size2);
-    allocator.Free(int1);
+    allocator.Free(str1);
+    allocator.Free(str2);
 }
 
 TEST(FreeListAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test

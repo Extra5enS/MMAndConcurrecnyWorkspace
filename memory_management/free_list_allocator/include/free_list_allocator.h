@@ -2,37 +2,54 @@
 #define MEMORY_MANAGEMENT_FREE_LIST_ALLOCATOR_INCLUDE_FREE_LIST_ALLOCATOR_H
 
 #include <cstddef>
-#include <new>
 #include <sys/mman.h>
-#include <unistd.h>
+#include <new>
+#include <cstdint>
 #include "base/macros.h"
 
 template <size_t ONE_MEM_POOL_SIZE>
 class FreeListAllocator {
-    // here we recommend you to use class MemoryPool. Use new to allocate them from heap.
-    // remember, you can not use any containers with heap allocations
-    class FreeListMemoryPool {
-        friend class FreeListAllocator;
+    struct FreeListMemoryPool {
+        struct FreeBlockHeader {
+            size_t size;
+            FreeBlockHeader *next;
+        };
 
-        struct Block {
-            Block *next;
+        struct OccupiedBlockHeader {
             size_t size;
         };
-        static constexpr Block *OCCUPIED_BLOCK = nullptr;
 
-    public:
+        static constexpr FreeBlockHeader *OCCUPIED_BLOCK = nullptr;
+        static constexpr size_t TOO_LARGE = static_cast<size_t>(-1);
+
+        // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+        FreeListMemoryPool *nextPool = nullptr;
+        // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+        FreeBlockHeader *freeListHead =
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            reinterpret_cast<FreeBlockHeader *>(reinterpret_cast<FreeListMemoryPool *>(this + 1));
+
+
         FreeListMemoryPool() noexcept
         {
-            freeListHead_->size = CalculateCapacity() - sizeof(FreeListMemoryPool);
-            freeListHead_->next = freeListHead_ + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            freeListHead->size = ONE_MEM_POOL_SIZE;
+            freeListHead->next = nullptr;
         }
 
         char *Allocate(size_t size) noexcept
         {
-            Block *prevBlock = nullptr;
-            Block *block = freeListHead_;
+            if (size == 0) {
+                return nullptr;
+            }
 
-            while (block && block->size + sizeof(Block) < size) {
+            if (size + sizeof(OccupiedBlockHeader) > ONE_MEM_POOL_SIZE) {
+                return reinterpret_cast<char *>(TOO_LARGE);
+            }
+
+            FreeBlockHeader *prevBlock = nullptr;
+            FreeBlockHeader *block = freeListHead;
+
+            while (block && block->size < size) {
                 prevBlock = block;
                 block = block->next;
             }
@@ -42,14 +59,17 @@ class FreeListAllocator {
             }
 
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            auto allocated = reinterpret_cast<char *>(block) + sizeof(Block);
+            auto allocated = reinterpret_cast<char *>(block) + sizeof(OccupiedBlockHeader);
 
-            Block *nextFreeBlock = block->next;
+            FreeBlockHeader *nextFreeBlock = block->next;
 
-            if (block->size < size + sizeof(Block)) {
+            if (block->size >= size + sizeof(FreeBlockHeader)) {
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                nextFreeBlock = reinterpret_cast<Block *>(allocated + size);
-                nextFreeBlock->size = block->size - size - sizeof(Block);
+                ptrdiff_t shift = GetBlockPtrAlignmentShift(allocated + size);
+
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+                nextFreeBlock = reinterpret_cast<FreeBlockHeader *>(allocated + size + shift);
+                nextFreeBlock->size = block->size - size - shift;
                 nextFreeBlock->next = block->next;
             }
 
@@ -57,12 +77,11 @@ class FreeListAllocator {
                 prevBlock->next = nextFreeBlock;
             }
 
-            if (freeListHead_ == block) {
-                freeListHead_ = nextFreeBlock;
+            if (freeListHead == block) {
+                freeListHead = nextFreeBlock;
             }
 
-            block->next = OCCUPIED_BLOCK;
-            block->size = size + sizeof(Block);
+            reinterpret_cast<OccupiedBlockHeader *>(block)->size = size;
 
             return allocated;
         }
@@ -77,10 +96,10 @@ class FreeListAllocator {
                 return;
             }
 
-            Block *block = reinterpret_cast<Block *>(ptr);
+            auto block = reinterpret_cast<FreeBlockHeader *>(ptr);
 
-            block->next = freeListHead_;
-            freeListHead_ = block;
+            block->next = freeListHead;
+            freeListHead = block;
         }
 
         bool VerifyPtr(const void *ptr) const noexcept
@@ -89,21 +108,26 @@ class FreeListAllocator {
                 return false;
             }
 
-            auto block = reinterpret_cast<const Block *>(ptr);
-
-            if (block->next != OCCUPIED_BLOCK) {
-                return false;
-            }
-
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            auto base = reinterpret_cast<const char *>(this);
-            return this <= ptr && reinterpret_cast<const char *>(ptr) + sizeof(Block) < base + CalculateCapacity();
+            auto base = reinterpret_cast<const char *>(this) + sizeof(FreeListAllocator);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            return base + sizeof(OccupiedBlockHeader) <= ptr &&
+                   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+                   reinterpret_cast<const char *>(ptr) < base + ONE_MEM_POOL_SIZE;
         }
 
-    private:
-        // NOLINTNEXTLINE(modernize-use-nullptr)
-        FreeListMemoryPool *nextPool = nullptr;
-        Block *freeListHead_ = reinterpret_cast<Block *>(this + sizeof(FreeListMemoryPool));
+        static ptrdiff_t GetBlockPtrAlignmentShift(const char *ptr) noexcept
+
+        {
+            auto szptr = reinterpret_cast<uintptr_t >(ptr);
+            uintptr_t mod = szptr % alignof(FreeBlockHeader);
+
+            if (mod == 0) {
+                return 0;
+            }
+
+            return alignof(FreeBlockHeader) - mod;
+        }
     };
 
 public:
@@ -116,7 +140,12 @@ public:
 
     ~FreeListAllocator() noexcept
     {
-        munmap(firstPool_, CalculateCapacity());
+        MemPool *pool = firstPool_;
+        while (pool) {
+            MemPool *old = pool;
+            pool = pool->nextPool;
+            munmap(old, ONE_MEM_POOL_SIZE);
+        }
     }
 
     NO_MOVE_SEMANTIC(FreeListAllocator);
@@ -125,11 +154,18 @@ public:
     template <class T = char>
     T *Allocate(size_t count) noexcept
     {
+        if (count == 0) {
+            return nullptr;
+        }
+
         MemPool *pool = firstPool_;
 
         size_t size = count * sizeof(T);
 
         char *allocated = pool->Allocate(size);
+        if (allocated == reinterpret_cast<char *>(MemPool::TOO_LARGE)) {
+            return nullptr;
+        }
 
         while (allocated == nullptr) {
             MemPool *prevPool = pool;
@@ -151,11 +187,11 @@ public:
         MemPool *pool = firstPool_;
 
         while (pool) {
-            pool = pool->nextPool;
             if (pool->VerifyPtr(ptr)) {
                 pool->Free(ptr);
                 break;
             }
+            pool = pool->nextPool;
         }
     }
 
@@ -165,6 +201,18 @@ public:
      */
     bool VerifyPtr(void *ptr)
     {
+        if (ptr == nullptr) {
+            return false;
+        }
+
+        MemPool *pool = firstPool_;
+
+        while (pool) {
+            if (pool->VerifyPtr(ptr)) {
+                return true;
+            }
+            pool = pool->nextPool;
+        }
         return false;
     }
 
@@ -174,18 +222,11 @@ private:
 
     static MemPool *CreateNewPool() noexcept
     {
-        return reinterpret_cast<MemPool *>(
-            mmap(NULL, CalculateCapacity(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
-    }
-
-    static size_t CalculateCapacity() noexcept
-    {
-        size_t psize = getpagesize();
-        size_t cap = psize * (1 + ONE_MEM_POOL_SIZE / psize);
-        if (ONE_MEM_POOL_SIZE % psize == 0) {
-            cap -= psize;
-        }
-        return cap;
+        auto newPool = reinterpret_cast<MemPool *>(mmap(
+            // NOLINTNEXTLINE(modernize-use-nullptr)
+            NULL, ONE_MEM_POOL_SIZE + sizeof(MemPool), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+        new (newPool) MemPool();
+        return newPool;
     }
 };
 
