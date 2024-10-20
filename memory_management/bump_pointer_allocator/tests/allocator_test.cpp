@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "memory_management/bump_pointer_allocator/include/bump_pointer_allocator.h"
 
-TEST(BumpAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ prefix to use test
+TEST(BumpAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 4048U;
     BumpPointerAllocator<MEMORY_POOL_SIZE> allocator;
@@ -22,7 +22,7 @@ TEST(BumpAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ pr
     ASSERT_EQ(allocator.Allocate<char>(0), nullptr);  // you can not allocate memory with 0 size
 }
 
-TEST(BumpAllocatorTest, DISABLED_AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
+TEST(BumpAllocatorTest, AllocatorMemPoolOverflowTest)  // remove DISABLED_ prefix to use test
 {
     constexpr size_t MEMORY_POOL_SIZE = 64U;
     BumpPointerAllocator<MEMORY_POOL_SIZE> allocator;
