@@ -209,6 +209,8 @@ private:
         {
             SetRefCount(UseCount() - 1);
         }
+        
+        objectWrapper_ = nullptr;
     }
     
     void SetRefCount(const size_t refCount)
