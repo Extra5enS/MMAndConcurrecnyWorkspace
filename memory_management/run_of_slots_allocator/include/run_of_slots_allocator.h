@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include "base/macros.h"
 
 template <size_t ONE_MEM_POOL_SIZE, size_t... SLOTS_SIZES>
@@ -122,7 +123,7 @@ public:
     template <class T = uint8_t>
     T *Allocate()
     {
-        if (sizeof(T) > ONE_MEM_POOL_SIZE || sizeof(T) == 0)
+        if (sizeof(T) > *std::max_element(slotSizes_.begin(), slotSizes_.end()) || sizeof(T) == 0)
         {
             return nullptr;
         }
