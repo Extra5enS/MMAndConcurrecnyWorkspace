@@ -5,83 +5,11 @@
 #include <functional>
 #include <iostream>
 
+#include "base/macros.h"
+
 template <class T>
 class Object;
-class MarkWord;
 class Header;
-
-class MarkWord
-{
-public:
-    MarkWord() : count_(new size_t{1}) {}
-
-    explicit MarkWord(std::nullptr_t) {}
-
-    MarkWord([[maybe_unused]] const MarkWord &other) : count_(other.count_)
-    {
-        (*count_)++;
-    }
-
-    ~MarkWord() 
-    {
-        ProcessMemRelease();
-    }
-
-    MarkWord &operator=([[maybe_unused]] const MarkWord &other)
-    {
-        if (this == &other)
-        {
-            return *this;
-        }
-
-        ProcessMemRelease();
-
-        count_ = other.count_;
-        (*count_)++;
-
-        return *this;
-    }
-
-    MarkWord(MarkWord &&other)
-    {
-        std::swap(count_, other.count_);
-    }
-
-    MarkWord &operator=([[maybe_unused]] MarkWord &&other)
-    {
-        if (this != &other)
-        {
-            std::swap(count_, other.count_);
-        }
-
-        return *this;
-    }
-
-    size_t GetCount() const
-    {
-        if (count_ == nullptr)
-        {
-            return 0;
-        }
-
-        return *count_;
-    }
-
-private:
-    size_t *count_ = nullptr;
-
-    void ProcessMemRelease()
-    {
-        if (GetCount() <= 1)
-        {
-            delete count_;
-        }
-        else
-        {
-            (*count_)--;
-        }
-    }
-};
 
 class Header
 {
@@ -89,49 +17,59 @@ public:
     Header() = default;
     ~Header() = default;
 
-    explicit Header(std::nullptr_t) : markWord_(nullptr) {}
+    NO_COPY_SEMANTIC(Header);
+    NO_MOVE_SEMANTIC(Header);
 
-    Header([[maybe_unused]] const Header &other) = default;
-
-    Header &operator=([[maybe_unused]] const Header &other)
+    void SetCount(size_t count)
     {
-        if (this != &other)
-        {
-            markWord_ = other.markWord_;
-        }
-
-        return *this;
-    }
-
-    Header(Header &&other)
-    {
-        std::swap(markWord_, other.markWord_);
-    }
-
-    Header &operator=([[maybe_unused]] Header &&other)
-    {
-        if (this != &other)
-        {
-            std::swap(markWord_, other.markWord_);
-        }
-
-        return *this;
+        count_ = count;
     }
 
     size_t GetCount() const
     {
-        return markWord_.GetCount();
+        return count_;
     }
 
 private:
-    MarkWord markWord_;
+    size_t count_ = 1;
+};
+
+template <class T>
+class ObjectOverall {
+public:
+    ObjectOverall() = default;
+    ~ObjectOverall() = default;
+
+    NO_COPY_SEMANTIC(ObjectOverall);
+    NO_MOVE_SEMANTIC(ObjectOverall);
+
+    size_t GetCount() const
+    {
+        return header_.GetCount();
+    }
+    
+    void SetCount(const size_t count)
+    {
+        header_.SetCount(count);
+    }
+
+    T *GetDataPtr()
+    {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        return reinterpret_cast<T*>(reinterpret_cast<char*>(this) + sizeof(header_)); 
+    }
+
+private:
+    Header header_ = {};
+    T data_ = {};
 };
 
 template <class T, class... Args>
 static Object<T> MakeObject([[maybe_unused]] Args... args)
 {
-    T *val = new T{args...};
-    Object<T> obj{val};
+    auto *objOver = new ObjectOverall<T>{};
+    T *data = new (objOver->GetDataPtr()) T{args...};
+    Object<T> obj{objOver};
     return obj;
 }
 
@@ -139,11 +77,10 @@ static Object<T> MakeObject([[maybe_unused]] Args... args)
 template <class T>
 class Object {
 public:
-    Object() : data_(nullptr), header_(nullptr) {}
+    Object() = default;
+    explicit Object(std::nullptr_t) : objOver_(nullptr) {}
 
-    explicit Object(std::nullptr_t) : data_(nullptr), header_(nullptr) {}
-
-    explicit Object([[maybe_unused]] T *ptr) : data_(ptr) {}
+    explicit Object([[maybe_unused]] ObjectOverall<T> *objOver) : objOver_(objOver) {}
 
     ~Object()
     {
@@ -151,7 +88,10 @@ public:
     }
 
     // copy semantic
-    Object([[maybe_unused]] const Object<T> &other) : header_(other.header_), data_(other.data_) {}
+    Object([[maybe_unused]] const Object<T> &other) : objOver_(other.objOver_)
+    {
+        SetCount(UseCount() + 1);
+    }
 
     // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     Object<T> &operator=([[maybe_unused]] const Object<T> &other)
@@ -162,76 +102,88 @@ public:
         }
 
         ProcessMemRelease();
-
-        data_ = other.data_;
-        header_ = other.header_;
+        objOver_ = other.objOver_;
+        SetCount(UseCount() + 1);
         return *this;
     }
 
     // move semantic
     Object([[maybe_unused]] Object<T> &&other)
     {
-        std::swap(header_, other.header_);
-        std::swap(data_, other.data_);
+        std::swap(objOver_, other.objOver_);
     }
 
     Object<T> &operator=([[maybe_unused]] Object<T> &&other)
     {
-        if (this != &other)
+        if (this == &other)
         {
-            std::swap(header_, other.header_);
-            std::swap(data_, other.data_);
+            return *this;
         }
 
+        ProcessMemRelease();
+        std::swap(objOver_, other.objOver_);
         return *this;
     }
 
     // member access operators
     T &operator*() const noexcept
     {
-        return *data_;
+        return *(objOver_->GetDataPtr());
     }
 
     T *operator->() const noexcept
     {
-        return data_;
+        return objOver_->GetDataPtr();
     }
 
     size_t UseCount() const
     {
-        return header_.GetCount();
+        if (objOver_ == nullptr)
+        {
+            return 0;
+        } 
+        return objOver_->GetCount();
     }
 
     bool operator==([[maybe_unused]] const Object<T> other) const
     {
-        return data_ == other.data_;
+        return objOver_ == other.objOver_;
     }
 
     bool operator!=(const Object<T> other) const
     {
-        return !(*this == other);
+        return objOver_ != other.objOver_;
     }
 
     bool operator==(std::nullptr_t) const
     {
-        return data_ == nullptr;
+        return objOver_ == nullptr;
     }
 
     bool operator!=(std::nullptr_t) const
     {
-        return data_ != nullptr;
+        return objOver_ != nullptr;
     }
 
 private:
-    Header  header_; 
-    T       *data_  = nullptr;
+    ObjectOverall<T> *objOver_ = nullptr;
 
     void ProcessMemRelease()
     {
         if (UseCount() <= 1)
         {
-            delete data_;
+            delete objOver_;
         }
+        else
+        {
+            SetCount(UseCount() - 1);
+        }
+        objOver_ = nullptr;
+    }
+
+    void SetCount(size_t count)
+    {
+        objOver_->SetCount(count);
     }
 };
 
