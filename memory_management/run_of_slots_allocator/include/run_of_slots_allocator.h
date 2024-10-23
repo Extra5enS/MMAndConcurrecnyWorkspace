@@ -127,7 +127,7 @@ public:
         return reinterpret_cast<T*>(memoryPools_[memoryPoolNum]->FindMem());
     }
 
-    void Free(void *ptr)
+    void Free([[maybe_unused]] void *ptr)
     {
         if (ptr == nullptr)
         {
