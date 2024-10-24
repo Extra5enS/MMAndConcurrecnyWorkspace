@@ -79,7 +79,6 @@ class Object {
 public:
     Object() = default;
     explicit Object(std::nullptr_t) : objOver_(nullptr) {}
-
     explicit Object([[maybe_unused]] ObjectOverall<T> *objOver) : objOver_(objOver) {}
 
     ~Object()
@@ -90,7 +89,7 @@ public:
     // copy semantic
     Object([[maybe_unused]] const Object<T> &other) : objOver_(other.objOver_)
     {
-        SetCount(UseCount() + 1);
+        objOver_->SetCount(UseCount() + 1);
     }
 
     // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
@@ -103,7 +102,7 @@ public:
 
         ProcessMemRelease();
         objOver_ = other.objOver_;
-        SetCount(UseCount() + 1);
+        objOver_->SetCount(UseCount() + 1);
         return *this;
     }
 
@@ -142,6 +141,7 @@ public:
         {
             return 0;
         } 
+        
         return objOver_->GetCount();
     }
 
@@ -176,14 +176,10 @@ private:
         }
         else
         {
-            SetCount(UseCount() - 1);
+            objOver_->SetCount(UseCount() - 1);
         }
         objOver_ = nullptr;
-    }
-
-    void SetCount(size_t count)
-    {
-        objOver_->SetCount(count);
+        
     }
 };
 
