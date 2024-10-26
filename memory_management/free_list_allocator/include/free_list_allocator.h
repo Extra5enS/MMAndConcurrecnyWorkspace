@@ -50,7 +50,15 @@ public:
             data_ = new uint8_t[MEM_POOL_SIZE];
 
             firstFreeBlock_ = reinterpret_cast<MemoryBlockHeader*>(data_);
-            firstFreeBlock_->SetSize(MEM_POOL_SIZE - sizeof(MemoryBlockHeader));
+            if (MEM_POOL_SIZE <= sizeof(MemoryBlockHeader))
+            {
+                firstFreeBlock_->SetSize(0);
+            }
+            else
+            {
+                firstFreeBlock_->SetSize(MEM_POOL_SIZE - sizeof(MemoryBlockHeader));
+            }
+    
             firstFreeBlock_->SetNextFreeBlock(nullptr);
         }
 
@@ -58,6 +66,9 @@ public:
         {
             delete [] data_;
         }
+
+        NO_MOVE_SEMANTIC(FreeListMemoryPool);
+        NO_COPY_SEMANTIC(FreeListMemoryPool);
 
         void *Allocate(size_t size)
         {
@@ -78,8 +89,8 @@ public:
             MemoryBlockHeader *newFree = nullptr;
             if (currentBlock->GetSize() - sizeof(MemoryBlockHeader) > size)
             {
-                newFree = reinterpret_cast<MemoryBlockHeader*>
-                          (reinterpret_cast<uint8_t*>(currentBlock) + sizeof(MemoryBlockHeader) + size);
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+                newFree = reinterpret_cast<MemoryBlockHeader*>(reinterpret_cast<uint8_t*>(currentBlock) + sizeof(MemoryBlockHeader) + size);
                 newFree->SetSize(currentBlock->GetSize() - sizeof(MemoryBlockHeader) - size);
                 newFree->SetNextFreeBlock(currentBlock->GetNextFreeBlock());
             }
@@ -98,13 +109,14 @@ public:
                 previousBlock->SetNextFreeBlock(newFree);
             }
 
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             return reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(currentBlock + sizeof(MemoryBlockHeader)));
         }
 
         void Free(void *ptr)
         {
-            auto *correspondBlock = reinterpret_cast<MemoryBlockHeader*>
-                                   (reinterpret_cast<uint8_t*>(ptr) - sizeof(MemoryBlockHeader));
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            auto *correspondBlock = reinterpret_cast<MemoryBlockHeader*>(reinterpret_cast<uint8_t*>(ptr) - sizeof(MemoryBlockHeader));
             correspondBlock = firstFreeBlock_;
             firstFreeBlock_ = correspondBlock;
         }
@@ -112,6 +124,7 @@ public:
         bool VerifyPtr(void *ptr)
         {
             auto *ptrCast = reinterpret_cast<uint8_t*>(ptr);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             return data_ <= ptrCast && ptrCast < (data_ + MEM_POOL_SIZE);
         }
 
@@ -125,10 +138,16 @@ private:
 public:
     FreeListAllocator()
     {
-        pools_.push_back(FreeListMemoryPool<ONE_MEM_POOL_SIZE> {});
+        pools_.push_back(new FreeListMemoryPool<ONE_MEM_POOL_SIZE> {});
     }
 
-    ~FreeListAllocator() = default;
+    ~FreeListAllocator()
+    {
+        for (auto &pool : pools_)
+        {
+            delete pool;
+        }
+    }
 
     NO_MOVE_SEMANTIC(FreeListAllocator);
     NO_COPY_SEMANTIC(FreeListAllocator);
@@ -141,17 +160,17 @@ public:
             return nullptr;
         }
 
-        for (auto pool : pools_)
+        for (auto &pool : pools_)
         {
-            void* addr = pool.Allocate(count);
+            void* addr = pool->Allocate(count);
             if (addr != nullptr)
             {
                 return reinterpret_cast<T*>(addr);
             }
         }
 
-        pools_.push_back(FreeListMemoryPool<ONE_MEM_POOL_SIZE> {});
-        return reinterpret_cast<T*>(pools_.back().Allocate(count));
+        pools_.push_back(new FreeListMemoryPool<ONE_MEM_POOL_SIZE> {});
+        return reinterpret_cast<T*>(pools_.back()->Allocate(count));
     }
 
     void Free([[maybe_unused]] void *ptr)
@@ -161,15 +180,13 @@ public:
             return;
         }
 
-        for (auto pool : pools_)
+        for (auto &pool: pools_)
         {
-            if (pool.VerifyPtr(ptr))
+            if (pool->VerifyPtr(ptr))
             {
-                pool.Free(ptr);
+                pool->Free(ptr);
             }
         }
-
-        return;
     }
 
     /**
@@ -178,9 +195,9 @@ public:
      */
     bool VerifyPtr(void *ptr)
     {
-        for (auto pool : pools_)
+        for (auto &pool : pools_)
         {
-            if (pool.VerifyPtr(ptr))
+            if (pool->VerifyPtr(ptr))
             {
                 return true;
             }
@@ -190,7 +207,7 @@ public:
     }
 
 private:
-    std::vector<FreeListMemoryPool<ONE_MEM_POOL_SIZE>> pools_;
+    std::vector<FreeListMemoryPool<ONE_MEM_POOL_SIZE>*> pools_;
 };
 
 #endif  // MEMORY_MANAGEMENT_FREE_LIST_ALLOCATOR_INCLUDE_FREE_LIST_ALLOCATOR_H

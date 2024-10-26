@@ -8,8 +8,6 @@ TEST(FreeListAllocatorTest, TemplateAllocationTest)  // remove DISABLED_ prefix 
     constexpr size_t MEMORY_POOL_SIZE = 4048U;
     FreeListAllocator<MEMORY_POOL_SIZE> allocator;
 
-    
-
     auto *size1 = allocator.Allocate<size_t>(1U);
     auto *size2 = allocator.Allocate<size_t>(1U);
     ASSERT_NE(size1, nullptr);
