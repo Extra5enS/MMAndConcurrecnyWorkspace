@@ -48,17 +48,15 @@ public:
         FreeListMemoryPool()
         {
             data_ = new uint8_t[MEM_POOL_SIZE];
-
-            firstFreeBlock_ = reinterpret_cast<MemoryBlockHeader*>(data_);
+            
             if (MEM_POOL_SIZE <= sizeof(MemoryBlockHeader))
             {
-                firstFreeBlock_->SetSize(0);
+                firstFreeBlock_ = nullptr;
+                return;
             }
-            else
-            {
-                firstFreeBlock_->SetSize(MEM_POOL_SIZE - sizeof(MemoryBlockHeader));
-            }
-    
+
+            firstFreeBlock_ = reinterpret_cast<MemoryBlockHeader*>(data_);
+            firstFreeBlock_->SetSize(MEM_POOL_SIZE - sizeof(MemoryBlockHeader));
             firstFreeBlock_->SetNextFreeBlock(nullptr);
         }
 
