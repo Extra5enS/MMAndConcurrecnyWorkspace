@@ -72,17 +72,13 @@ TEST(ThreadSafeQueueTest, MultithreadingTest) {
         // wait here
     }
     queue.ReleaseConsumers();
-    
+
     for(auto& pusher : pushers) {
         pusher.join();
     }
-    std::cerr << popCounter << " " << pushCounter << std::endl;
-    std::cerr << "AAAAAAA " << int(queue.IsEmpty()) << " " << queue.waitCount_ << std::endl;
-
     for(auto& popper: poppers) {
         popper.join();
     }
-    std::cout << popCounter << " " << pushCounter << std::endl;
 
     std::sort(container.begin(), container.end());
     for(size_t i = 0; i < THREAD_COUNT * PUSH_COUNT; i++) {
@@ -92,7 +88,7 @@ TEST(ThreadSafeQueueTest, MultithreadingTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(FastThreadSafeMap, DISABLED_SingleThreadTest) {
+TEST(FastThreadSafeMap, SingleThreadTest) {
     ThreadSafeMap<size_t, size_t> map;
 
     static constexpr size_t MAX_VALUE_TO_PUSH = 10U;

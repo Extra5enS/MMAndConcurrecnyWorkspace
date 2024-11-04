@@ -17,27 +17,22 @@ public:
     void Push([[maybe_unused]] T val) {
         std::unique_lock lock(mutex_);
         queue_.push(val);
-        std::cerr << "PUSH " << pushn << std::endl;
-        pushn++;
         waitFinishCond_.notify_one();
     }
 
     std::optional<T> Pop() {
         std::unique_lock lock(mutex_);
-        waitCount_++;
 
-        waitFinishCond_.wait(lock, [&](){return !queue_.empty();});
+        waitFinishCond_.wait(lock, [&](){return !queue_.empty() || needRelease_;});
 
-        std::cerr << "POP " << popn << std::endl;
-        popn++;
+        if (needRelease_)
+        {
+            return std::nullopt;
+        }
 
         T val = queue_.front();
         queue_.pop();
 
-        if (--waitCount_ == 0)
-        {
-            waitFinishCond_.notify_one();
-        }
         return val;
     }
 
@@ -47,19 +42,16 @@ public:
     }
 
     void ReleaseConsumers() {
-        // ... this method should release all threads that wait in Pop() method for new elems
+        needRelease_ = true;
+        waitFinishCond_.notify_all();
     }
-
-    std::atomic<size_t> waitCount_ = 0;
-    std::atomic<size_t> pushn = 0;
-    std::atomic<size_t> popn = 0;
 
 private:
     std::queue<T> queue_;
-    mutable std::mutex mutex_;
+    std::mutex mutex_;
     std::condition_variable waitFinishCond_;
-    std::condition_variable waitCond1_;
     
+    bool needRelease_ = false;
 };
 
 #endif
