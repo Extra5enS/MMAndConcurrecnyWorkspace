@@ -4,12 +4,13 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
+#include <iostream>
 
 #include "concurrency/thread_safe_containers/include/thread_safe_queue.h"
 #include "concurrency/thread_safe_containers/include/fast_thread_safe_map.h"
 
 
-TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
+TEST(ThreadSafeQueueTest, SingleThreadTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
 
@@ -28,7 +29,7 @@ TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
+TEST(ThreadSafeQueueTest, MultithreadingTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
     std::atomic<size_t> pushCounter = 0;
@@ -67,18 +68,21 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
         pushers.emplace_back(push);
         poppers.emplace_back(pop);
     }
-
     while(popCounter != THREAD_COUNT * PUSH_COUNT) {
         // wait here
     }
     queue.ReleaseConsumers();
-
+    
     for(auto& pusher : pushers) {
         pusher.join();
     }
+    std::cerr << popCounter << " " << pushCounter << std::endl;
+    std::cerr << "AAAAAAA " << int(queue.IsEmpty()) << " " << queue.waitCount_ << std::endl;
+
     for(auto& popper: poppers) {
         popper.join();
     }
+    std::cout << popCounter << " " << pushCounter << std::endl;
 
     std::sort(container.begin(), container.end());
     for(size_t i = 0; i < THREAD_COUNT * PUSH_COUNT; i++) {
