@@ -3,6 +3,8 @@
 
 // реализуйте потоко защищенную очередь, которая в Pop ожидала бы появления нового элемента, если очередь пусткая
 
+#include<optional>
+
 template<class T>
 class ThreadSafeQueue {
 public:
@@ -11,7 +13,7 @@ public:
         // ... implement this
     }
 
-    T Pop() {
+    std::optional<T> Pop() {
         // ... implement this
         return T{};
     }
@@ -19,6 +21,10 @@ public:
     bool IsEmpty() {
         // ... implement this
         return true;
+    }
+
+    void ReleaseConsumers() {
+        // ... this method should release all threads that wait in Pop() method for new elems
     }
 
 private:
