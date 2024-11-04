@@ -9,7 +9,7 @@
 #include "concurrency/thread_safe_containers/include/fast_thread_safe_map.h"
 
 
-TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
+TEST(ThreadSafeQueueTest, SingleThreadTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
 
@@ -28,7 +28,7 @@ TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
+TEST(ThreadSafeQueueTest, MultithreadingTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
     std::atomic<size_t> pushCounter = 0;
@@ -50,9 +50,12 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     auto pop = [&queue, &container, &lock, &popCounter]() {
         while(popCounter != THREAD_COUNT * PUSH_COUNT) {
             auto val = queue.Pop();
+            if(!val.has_value()) {
+                return;
+            } 
             {
                 std::lock_guard lg(lock);
-                container.push_back(val);
+                container.push_back(val.value());
             }
             popCounter++;
         }
@@ -64,6 +67,11 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
         pushers.emplace_back(push);
         poppers.emplace_back(pop);
     }
+
+    while(popCounter != THREAD_COUNT * PUSH_COUNT) {
+        // wait here
+    }
+    queue.ReleaseConsumers();
 
     for(auto& pusher : pushers) {
         pusher.join();
@@ -80,7 +88,7 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(FastThreadSafeMap, DISABLED_SingleThreadTest) {
+TEST(FastThreadSafeMap, SingleThreadTest) {
     ThreadSafeMap<size_t, size_t> map;
 
     static constexpr size_t MAX_VALUE_TO_PUSH = 10U;

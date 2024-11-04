@@ -48,11 +48,11 @@ TEST(LockFreeStackTest, DISABLED_MultithreadingTest) {
     auto pop = [&queue, &container, &lock, &popCounter]() {
         while(popCounter != THREAD_COUNT * PUSH_COUNT) {
             auto val = queue.Pop();
-            {
+            if(val.has_value()) {
                 std::lock_guard lg(lock);
-                container.push_back(val);
+                container.push_back(val.value());
+                popCounter++;
             }
-            popCounter++;
         }
     };
 
@@ -63,6 +63,10 @@ TEST(LockFreeStackTest, DISABLED_MultithreadingTest) {
         poppers.emplace_back(pop);
     }
 
+    while(popCounter != THREAD_COUNT * PUSH_COUNT) {
+        // wait here
+    }
+    
     for(auto& pusher : pushers) {
         pusher.join();
     }
