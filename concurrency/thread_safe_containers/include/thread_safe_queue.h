@@ -36,7 +36,7 @@ public:
     }
 
     void ReleaseConsumers() {
-        std::unique_lock<std::mutex> lock();
+        std::unique_lock<std::mutex> lock(mutex_);
         release_ = true;
         condVar_.notify_all();
     }
