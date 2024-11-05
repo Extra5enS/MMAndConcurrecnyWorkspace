@@ -13,21 +13,9 @@ class FreeListAllocator {
         class FreeMemoryBlock
         {
         public:
-            FreeMemoryBlock(size_t size, char *ptr, FreeMemoryBlock *nextBlock, FreeMemoryBlock *prevBlock) : 
-                            size_(size), 
-                            ptrToMem_(ptr), 
-                            nextBlock_(nextBlock),
-                            prevBlock_(prevBlock) {}
-
-            char *GetPtr()
-            {
-                return ptrToMem_;
-            }
-
-            void SetPtr(char *ptr)
-            {
-                ptrToMem_ = ptr;
-            }
+            FreeMemoryBlock(FreeMemoryBlock *nextBlock, size_t size) : 
+                            nextBlock_(nextBlock), 
+                            size_(size) {}
 
             FreeMemoryBlock *GetNextBlock()
             {
@@ -39,16 +27,6 @@ class FreeListAllocator {
                 nextBlock_ = nextBlock;
             }
 
-            FreeMemoryBlock *GetPrevBlock()
-            {
-                return prevBlock_;
-            }
-
-            void SetPrevBlock(FreeMemoryBlock *prevBlock)
-            {
-                prevBlock_ = prevBlock;
-            }
-            
             size_t GetSize() const
             {
                 return size_;
@@ -60,30 +38,24 @@ class FreeListAllocator {
             }
 
         private:
-            size_t size_ = 0;
-            char *ptrToMem_ = nullptr;
             FreeMemoryBlock *nextBlock_ = nullptr;
-            FreeMemoryBlock *prevBlock_ = nullptr;
+            size_t size_ = 0;
         };
 
     public: // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        FreeListMemoryPool() : beginMemPool_(&memPool_[0]), endMemPool_(&memPool_[0] + MEM_POOL_SIZE)
-        {    
-            rootBlock_ = new FreeMemoryBlock{MEM_POOL_SIZE, beginMemPool_, nullptr, nullptr};
+        FreeListMemoryPool()
+        {
+            if (MEM_POOL_SIZE <= sizeof(FreeMemoryBlock))
+            {
+                return;
+            }
+
+            rootBlock_ = reinterpret_cast<FreeMemoryBlock*>(&memPool_[0]);
+            rootBlock_->SetSize(MEM_POOL_SIZE - sizeof(FreeMemoryBlock));
+            rootBlock_->SetNextBlock(nullptr);
         }
         
-        ~FreeListMemoryPool() 
-        {
-            FreeMemoryBlock *curBlock = rootBlock_;
-            FreeMemoryBlock *nextBlock = nullptr;
-            
-            do
-            {
-                nextBlock = curBlock->GetNextBlock();
-                delete curBlock;
-                curBlock = nextBlock;
-            } while (curBlock != nullptr);
-        }
+        ~FreeListMemoryPool() = default;
 
         NO_MOVE_SEMANTIC(FreeListMemoryPool);
         NO_COPY_SEMANTIC(FreeListMemoryPool);
@@ -93,49 +65,12 @@ class FreeListAllocator {
         {
             size_t requiredMem = count * sizeof(T) + sizeof(size_t);
 
-            auto freeBlock = FindFreeBlock(requiredMem);
+            FreeMemoryBlock *prevBlock = nullptr;
+            FreeMemoryBlock *curBlock = rootBlock_;
 
-            if (freeBlock == nullptr)
-            {
-                return nullptr;
-            }
-
-            auto header = reinterpret_cast<size_t*>(freeBlock->GetPtr());
-            *header = requiredMem - sizeof(size_t);
-
-            UpdateBlocksOnAllocation(requiredMem, freeBlock);
-
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            return reinterpret_cast<T*>(header + 1);
-        }
-
-        void Free(void *ptr)
-        {   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            auto ptrToHeader = reinterpret_cast<char*>(ptr) - sizeof(size_t);
-
-            auto curBlock = FindBlockAfterPtr(ptrToHeader);
-
-            if (curBlock == nullptr)
-            {
-                return;
-            }
-
-            UpdateBlocksOnRelease(ptrToHeader, curBlock);
-        }
-        
-        bool VerifyPtr(void *ptr)
-        {
-            auto charPtr = reinterpret_cast<char*>(ptr);
-            return (beginMemPool_ <= charPtr && charPtr < endMemPool_);
-        }
-
-    private:
-        inline FreeMemoryBlock *FindFreeBlock(size_t requiredMem)
-        {
-            auto curBlock = rootBlock_;
-            
             while (curBlock->GetSize() < requiredMem)
             {
+                prevBlock = curBlock;
                 curBlock = curBlock->GetNextBlock();
                 
                 if (curBlock == nullptr)
@@ -144,120 +79,72 @@ class FreeListAllocator {
                 }
             }
 
-            return curBlock;
-        }
+            UpdateBlockOnAllocation(curBlock, prevBlock, requiredMem);
 
-        // NOLINTNEXTLINE(readability-non-const-parameter)
-        inline FreeMemoryBlock *FindBlockAfterPtr(char* const ptrToHeader)
-        {
-            auto curBlock = rootBlock_;
-            size_t size = *reinterpret_cast<size_t*>(ptrToHeader);
-
-            while (ptrToHeader > curBlock->GetPtr())
-            {
-                auto nextBlock = curBlock->GetNextBlock();
-                
-                if (nextBlock == nullptr)
-                {   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                    if (curBlock->GetPtr() + curBlock->GetSize() != ptrToHeader)
-                    {
-                        assert(0);
-                    }
-
-                    curBlock->SetSize(curBlock->GetSize() + size);
-                    
-                    return nullptr;
-                }
-                
-                curBlock = nextBlock;
-            }
-
-            return curBlock;
-        }
-
-        inline void UpdateBlocksOnAllocation(size_t requiredMem, FreeMemoryBlock *freeBlock)
-        {
-            if (freeBlock->GetSize() == requiredMem)
-            {
-                if (rootBlock_ == freeBlock)
-                {
-                    rootBlock_ = freeBlock->GetPrevBlock();
-                    rootBlock_->SetPrevBlock(nullptr);
-                }
-
-                auto prevBlock = freeBlock->GetPrevBlock();
-                auto nextBlock = freeBlock->GetNextBlock();
-
-                prevBlock->SetNextBlock(nextBlock);
-                
-                if (nextBlock)
-                {
-                    nextBlock->SetPrevBlock(prevBlock);
-                }
-            }
-            else
-            {   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                freeBlock->SetPtr(freeBlock->GetPtr() + requiredMem);
-                freeBlock->SetSize(freeBlock->GetSize() - requiredMem);
-            }
-        }
-
-        inline void UpdateBlocksOnRelease(char* const ptrToHeader, FreeMemoryBlock *curBlock)
-        {
-            size_t size = *reinterpret_cast<size_t*>(ptrToHeader);
-
-            auto prevBlock = curBlock->GetPrevBlock();
-
+            auto header = reinterpret_cast<size_t*>(curBlock);
+            *header = requiredMem;
+            
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            if (ptrToHeader + size == curBlock->GetPtr())
+            return reinterpret_cast<T*>(header + 1);
+        }
+
+        void Free(void *ptr)
+        {   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            auto ptrToHeader = reinterpret_cast<char*>(ptr) - sizeof(size_t);
+            size_t size = *reinterpret_cast<size_t*>(ptrToHeader);
+
+            auto newBlock = reinterpret_cast<FreeMemoryBlock*>(ptrToHeader);
+            newBlock->SetNextBlock(rootBlock_);
+            newBlock->SetSize(size);
+            
+            rootBlock_ = newBlock;
+        }
+        
+        bool VerifyPtr(void *ptr)
+        {
+            auto charPtr = reinterpret_cast<char*>(ptr);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            return (&memPool_[0] <= charPtr && charPtr < &memPool_[0] + MEM_POOL_SIZE);
+        }
+
+    private:
+
+        void UpdateBlockOnAllocation(FreeMemoryBlock *curBlock, FreeMemoryBlock *prevBlock, size_t requiredMem)
+        {
+            if (curBlock->GetSize() == requiredMem)
             {
-                curBlock->SetPtr(ptrToHeader);
-                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                curBlock->SetSize(curBlock->GetSize() + size);
-
-                if (prevBlock == nullptr)
+                if (prevBlock)
                 {
-                    return;
+                    prevBlock->SetNextBlock(curBlock->GetNextBlock());
                 }
-
-                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                if (prevBlock->GetPtr() + prevBlock->GetSize() == ptrToHeader)
-                {   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                    prevBlock->SetSize(prevBlock->GetSize() + curBlock->GetSize());
-
-                    auto nextBlock = curBlock->GetNextBlock();
-                    prevBlock->SetNextBlock(nextBlock);
-                    nextBlock->SetPrevBlock(prevBlock);
-
-                    delete curBlock;
-                    return;
+                else
+                {
+                    rootBlock_ = curBlock->GetNextBlock();
                 }
             }
             else
             {
-                if (prevBlock == nullptr)
-                {
-                    auto newBlock = new FreeMemoryBlock{size, ptrToHeader, curBlock, nullptr};
-                    rootBlock_ = newBlock;
-                    curBlock->SetPrevBlock(newBlock);
-
-                    return;
-                }
+                auto ptr = reinterpret_cast<char*>(curBlock);
 
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                if (prevBlock->GetPtr() + prevBlock->GetSize() == ptrToHeader)
+                auto changeCurBlock = reinterpret_cast<FreeMemoryBlock*>(ptr + requiredMem);
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+                changeCurBlock->SetSize(curBlock->GetSize() - requiredMem);
+                changeCurBlock->SetNextBlock(curBlock->GetNextBlock());
+                
+                if (prevBlock)
                 {
-                    prevBlock->SetSize(prevBlock->GetSize() + size);
-                    return;
+                    prevBlock->SetNextBlock(changeCurBlock);
+                }
+                else
+                {
+                    rootBlock_ = changeCurBlock;
                 }
             }
         }
 
         std::array<char, MEM_POOL_SIZE> memPool_ = {};
-        char *beginMemPool_ = nullptr;
-        char *endMemPool_ = nullptr;
-
-        FreeMemoryBlock *rootBlock_;
+        FreeMemoryBlock *rootBlock_ = nullptr;
     }; // class FreeListMemoryPool
 
 public:
