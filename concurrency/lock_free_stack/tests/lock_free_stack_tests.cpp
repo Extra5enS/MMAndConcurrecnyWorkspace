@@ -5,12 +5,10 @@
 #include <mutex>
 #include <algorithm>
 
-#include "concurrency/thread_safe_containers/include/thread_safe_queue.h"
-#include "concurrency/thread_safe_containers/include/fast_thread_safe_map.h"
+#include "concurrency/lock_free_stack/include/lock_free_stack.h"
 
-
-TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
-    ThreadSafeQueue<size_t> queue;
+TEST(LockFreeStackTest, DISABLED_SingleThreadTest) {
+    LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
 
     static constexpr size_t MAX_VALUE_TO_PUSH = 10U;
@@ -22,14 +20,14 @@ TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
     for(size_t i = 0; i < MAX_VALUE_TO_PUSH; i++) {
         ASSERT_FALSE(queue.IsEmpty());
         auto val = queue.Pop();
-        ASSERT_EQ(i, val);    
+        ASSERT_EQ(MAX_VALUE_TO_PUSH - i - 1, val);    
     }
 
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
-    ThreadSafeQueue<size_t> queue;
+TEST(LockFreeStackTest, DISABLED_MultithreadingTest) {
+    LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
     std::atomic<size_t> pushCounter = 0;
     std::atomic<size_t> popCounter = 0;
@@ -50,14 +48,11 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     auto pop = [&queue, &container, &lock, &popCounter]() {
         while(popCounter != THREAD_COUNT * PUSH_COUNT) {
             auto val = queue.Pop();
-            if(!val.has_value()) {
-                return;
-            } 
-            {
+            if(val.has_value()) {
                 std::lock_guard lg(lock);
                 container.push_back(val.value());
+                popCounter++;
             }
-            popCounter++;
         }
     };
 
@@ -71,8 +66,7 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     while(popCounter != THREAD_COUNT * PUSH_COUNT) {
         // wait here
     }
-    queue.ReleaseConsumers();
-
+    
     for(auto& pusher : pushers) {
         pusher.join();
     }
@@ -86,25 +80,4 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     }
 
     ASSERT_TRUE(queue.IsEmpty());
-}
-
-TEST(FastThreadSafeMap, DISABLED_SingleThreadTest) {
-    ThreadSafeMap<size_t, size_t> map;
-
-    static constexpr size_t MAX_VALUE_TO_PUSH = 10U;
-
-    for(size_t i = 0; i < MAX_VALUE_TO_PUSH; i++) {
-        ASSERT_FALSE(map.Test(i));
-    }
-
-    for(size_t i = 0; i < MAX_VALUE_TO_PUSH; i++) {
-        map.Insert(i, i);
-        ASSERT_TRUE(map.Test(i));
-    }
-    
-    for(size_t i = 0; i < MAX_VALUE_TO_PUSH; i++) {
-        map.Erase(i);
-        ASSERT_FALSE(map.Test(i));
-    }
-
 }

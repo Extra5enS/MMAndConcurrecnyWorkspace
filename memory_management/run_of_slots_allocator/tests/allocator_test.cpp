@@ -5,7 +5,7 @@
 
 TEST(RunOfSlotsAllocatorTest, DISABLED_TemplateAllocationTest)  // remove DISABLED_ prefix to use test
 {
-    constexpr size_t MEMORY_POOL_SIZE = 4048U;
+    constexpr size_t MEMORY_POOL_SIZE = 2048U;
     RunOfSlotsAllocator<MEMORY_POOL_SIZE, 1U, 2U, 4U, 8U> allocator;
 
     auto *size1 = allocator.Allocate<size_t>();
