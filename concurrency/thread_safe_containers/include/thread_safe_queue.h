@@ -36,13 +36,13 @@ public:
     }
 
     void ReleaseConsumers() {
-        
+        std::unique_lock<std::mutex> lock();
         release_ = true;
         condVar_.notify_all();
     }
 
 private:
-    std::atomic<bool> release_ = false;
+    bool release_ = false;
     std::mutex mutex_;
     std::condition_variable condVar_;
     std::queue<T> queue_;
