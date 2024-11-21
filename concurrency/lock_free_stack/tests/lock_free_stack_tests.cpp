@@ -16,11 +16,11 @@ TEST(LockFreeStackTest, DISABLED_SingleThreadTest) {
         queue.Push(i);
         ASSERT_FALSE(queue.IsEmpty());
     }
-    
+
     for(size_t i = 0; i < MAX_VALUE_TO_PUSH; i++) {
         ASSERT_FALSE(queue.IsEmpty());
         auto val = queue.Pop();
-        ASSERT_EQ(MAX_VALUE_TO_PUSH - i - 1, val);    
+        ASSERT_EQ(MAX_VALUE_TO_PUSH - i - 1, val);
     }
 
     ASSERT_TRUE(queue.IsEmpty());
@@ -66,7 +66,7 @@ TEST(LockFreeStackTest, DISABLED_MultithreadingTest) {
     while(popCounter != THREAD_COUNT * PUSH_COUNT) {
         // wait here
     }
-    
+
     for(auto& pusher : pushers) {
         pusher.join();
     }
@@ -89,11 +89,12 @@ TEST(LockFreeStackTest, DISABLED_LoadTest) {
     std::atomic<size_t> popCounter = 0;
 
     std::vector<size_t> container;
-    std::mutex lock;
+    [[maybe_unused]] std::mutex lock;
 
     static constexpr size_t THREAD_COUNT = 10U;
     static constexpr size_t PUSH_COUNT = 1'000'000U;
 
+    // NOLINTNEXTLINE(clang-diagnostic-unused-lambda-capture)
     auto push = [&queue, &pushCounter](){
         for(size_t i = 0; i < PUSH_COUNT; i++) {
             queue.Push(i);
@@ -119,7 +120,7 @@ TEST(LockFreeStackTest, DISABLED_LoadTest) {
     while(popCounter != THREAD_COUNT * PUSH_COUNT) {
         // wait here
     }
-    
+
     for(auto& pusher : pushers) {
         pusher.join();
     }
