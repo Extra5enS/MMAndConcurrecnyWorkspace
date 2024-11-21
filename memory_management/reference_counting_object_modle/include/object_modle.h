@@ -6,11 +6,18 @@
 template <class T>
 class Object;
 
+struct ObjectHeader {
+    size_t refCount;
+};
+
 template <class T, class... Args>
-static Object<T> MakeObject([[maybe_unused]] Args... args)
+static Object<T> MakeObject(Args... args)
 {
-    // TODO(you): Implement this function
-    return {};
+    auto *header = reinterpret_cast<ObjectHeader*>(new char[sizeof(ObjectHeader) + sizeof(T)]);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,-warnings-as-errors)
+    T *val = new (header + 1) T{args...};
+    header->refCount = 1;
+    return Object<T>{header};
 }
 
 // TODO(you): Implement object base on java object representatoin
@@ -19,43 +26,70 @@ class Object {
 public:
     Object() = default;
     explicit Object(std::nullptr_t) {}
+    explicit Object(ObjectHeader *header) : header_(header) {}
 
-    ~Object() = default;  // this method should be changed
+    ~Object()
+    {
+        Release();
+    }
 
     // copy semantic
-    Object([[maybe_unused]] const Object<T> &other) {}
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    Object<T> &operator=([[maybe_unused]] const Object<T> &other)
+    Object(const Object<T> &other) : header_(other.header_)
     {
+        ++header_->refCount;
+    }
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    Object<T> &operator=(const Object<T> &other)
+    {
+        if (this != &other) {
+            Release();
+            header_ = other.header_;
+            ++header_->refCount;
+        }
+
         return *this;
     }
 
     // move semantic
-    Object([[maybe_unused]] Object<T> &&other) {}
-    Object<T> &operator=([[maybe_unused]] Object<T> &&other)
+    Object(Object<T> &&other) : header_(other.header_)
     {
+        other.header_ = nullptr;
+    }
+    Object<T> &operator=(Object<T> &&other)
+    {
+        if (this != &other) {
+            Release();
+            header_ = other.header_;
+            other.header_ = nullptr;
+        }
         return *this;
     }
 
     // member access operators
     T &operator*() const noexcept
     {
-        return *val_;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,-warnings-as-errors)
+        return *reinterpret_cast<T*>(header_ + 1);
     }
 
     T *operator->() const noexcept
     {
-        return val_;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,-warnings-as-errors)
+        return reinterpret_cast<T*>(header_ + 1);
     }
 
     size_t UseCount() const
     {
-        return 0;
+        if (header_ == nullptr) {
+            return 0;
+        }
+
+        return header_->refCount;
     }
 
-    bool operator==([[maybe_unused]] const Object<T> other) const
+    bool operator==(const Object<T> other) const
     {
-        return false;
+        return header_ == other.header_;
     }
 
     bool operator!=(const Object<T> other) const
@@ -65,19 +99,28 @@ public:
 
     bool operator==(std::nullptr_t) const
     {
-        return false;
+        return header_ == nullptr;
     }
 
     bool operator!=(std::nullptr_t) const
     {
-        return false;
+        return !(*this == nullptr);
     }
 
 private:
-    // Add your constructor
+    ObjectHeader* header_ = nullptr;
 
-    // TODO(you): Add your fields and methods here...
-    T *val_ = nullptr;  // this field can be deleted
+    void Release()
+    {
+        if (header_ == nullptr) {
+            return;
+        }
+        if (--header_->refCount == 0) {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,-warnings-as-errors)
+            reinterpret_cast<T*>(header_ + 1)->~T();
+            delete [] header_;
+        }
+    }
 };
 
 #endif  // MEMORY_MANAGEMENT_REFERECNCE_COUNTING_GC_INCLUDE_OBJECT_MODLE_H
