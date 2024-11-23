@@ -38,6 +38,11 @@ function(add_gtest)
     target_link_options(${TEST_NAME} PRIVATE -fsanitize=address)
   endif()
 
+  if(PROJECT_USE_TSAN)
+    target_compile_options(${TEST_NAME} PRIVATE -fsanitize=thread)
+    target_link_options(${TEST_NAME} PRIVATE -fsanitize=thread)
+  endif()
+
   add_custom_target(
     ${TEST_NAME}_run
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_NAME}
