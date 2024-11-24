@@ -9,7 +9,7 @@
 #include "concurrency/lock_free_stack/include/lock_free_stack.h"
 
 TEST(LockFreeStackTest, SingleThreadTest) {
-    LockFreeStack<size_t> queue{1};
+    LockFreeStack<size_t> queue{};
     ASSERT_TRUE(queue.IsEmpty());
 
     static constexpr size_t MAX_VALUE_TO_PUSH = 10U;
@@ -31,7 +31,7 @@ TEST(LockFreeStackTest, MultithreadingTest) {
     static constexpr size_t THREAD_COUNT = 10U;
     static constexpr size_t PUSH_COUNT = 1000U;
 
-    LockFreeStack<size_t> queue{THREAD_COUNT};
+    LockFreeStack<size_t> queue{};
     ASSERT_TRUE(queue.IsEmpty());
     std::atomic<size_t> pushCounter = 0;
     std::atomic<size_t> popCounter = 0;
@@ -88,7 +88,7 @@ TEST(LockFreeStackTest, LoadTest) {
     static constexpr size_t THREAD_COUNT = 10U;
     static constexpr size_t PUSH_COUNT = 1'000'000U;
 
-    LockFreeStack<size_t> queue{THREAD_COUNT};
+    LockFreeStack<size_t> queue{};
     ASSERT_TRUE(queue.IsEmpty());
 
     std::atomic<size_t> pushCounter = 0;
