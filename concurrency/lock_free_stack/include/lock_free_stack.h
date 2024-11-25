@@ -215,6 +215,10 @@ public:
                 tmp = curHead;
                 hazardPtr.store(curHead);
                 curHead = head_.load();
+                if (curHead == nullptr)
+                {
+                    return std::nullopt;
+                }
             } while (curHead != tmp);
 
         } while (!head_.compare_exchange_weak(curHead, curHead->next));
