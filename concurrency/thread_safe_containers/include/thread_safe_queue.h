@@ -40,8 +40,6 @@ public:
 
     bool IsEmpty()
     {
-        std::unique_lock lock {mutex_};
-
         return queue_.empty();
     }
 

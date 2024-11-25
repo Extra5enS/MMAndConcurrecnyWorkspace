@@ -16,7 +16,7 @@ public:
     {
         std::unique_lock lock {mutex_};
 
-        map_[key] = std::move(val);
+        map_[key] = val;
     }
 
     // returns true if erase was completed successfully, otherwise false
@@ -24,14 +24,7 @@ public:
     {
         std::unique_lock lock {mutex_};
 
-        auto it = map_.find(key);
-        if (it == map_.cend()) {
-            return false;
-        }
-
-        map_.erase(it);
-
-        return true;
+        return map_.erase(key) != 0;
     }
 
     // return Val instance if object contains it, otherwise std::nullopt
