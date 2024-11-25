@@ -7,63 +7,59 @@
 #include <thread>
 #include <algorithm>
 #include <cstring>
+#include <array>
 #include "base/macros.h"
-
-template <class T>
-class HazardPtr;
-
-template <class T>
-class LockFreeStack;
 
 const size_t MAX_THREAD_NUM = 100;
 
 template <class T>
-class Node
+struct Node
 {
-    friend class LockFreeStack<T>;
-public:
-    explicit Node(const T& key, Node<T> *next = nullptr) : key_(key), next_(next) {}
-    
-private:
-    T key_;
-    Node<T> *next_;
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    T key;
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    Node<T> *next;
+
+    explicit Node(const T& key, Node<T> *next = nullptr) : key(key), next(next) {}
 }; // class Node
 
 template <class T>
-class HazardPtr
+struct HazardPtr
 {
-public:
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    std::atomic<Node<T>*> node = nullptr;
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    std::atomic<std::thread::id> id;
+
     NO_MOVE_SEMANTIC(HazardPtr);
     NO_COPY_SEMANTIC(HazardPtr);
 
     HazardPtr() = default;
     ~HazardPtr() = default;
-
-public:
-    std::atomic<Node<T>*> node_ = nullptr;
-    std::atomic<std::thread::id> id_;
 }; // class HazardPtr
 
 template <class T>
-HazardPtr<T> hazardPtrs[MAX_THREAD_NUM];
+std::array<HazardPtr<T>, MAX_THREAD_NUM> g_hazardPtrs;
 
 template <class T>
-class HazardPtrWrapper
+struct HazardPtrWrapper
 {
-public:
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    HazardPtr<T>* hazardPtr = nullptr;
+
     HazardPtrWrapper()
     {
         for (size_t i = 0; i < MAX_THREAD_NUM; ++i)
         {
             std::thread::id id;
-            if (hazardPtrs<T>[i].id_.compare_exchange_strong(id, std::this_thread::get_id()))
+            if (g_hazardPtrs<T>[i].id.compare_exchange_strong(id, std::this_thread::get_id()))
             {
-                hazardPtr_ = &hazardPtrs<T>[i];
+                hazardPtr = &g_hazardPtrs<T>[i];
                 break;
             }
         }
 
-        assert(hazardPtr_ != nullptr && "There are more threads than the maximum number");
+        assert(hazardPtr != nullptr && "There are more threads than the maximum number");
     }
 
     NO_MOVE_SEMANTIC(HazardPtrWrapper);
@@ -71,27 +67,25 @@ public:
 
     ~HazardPtrWrapper()
     {
-        hazardPtr_->id_.store(std::thread::id{});
-        hazardPtr_->node_.store(nullptr);
+        hazardPtr->id.store(std::thread::id{});
+        hazardPtr->node.store(nullptr);
     }
-
-public:
-    HazardPtr<T>* hazardPtr_ = nullptr;
+    
 }; // class HazardPtrWrapper
 
 template <class T>
-std::atomic<Node<T>*>& getHazardPtr()
+std::atomic<Node<T>*>& GetHazardPtr()
 {
     thread_local static HazardPtrWrapper<T> wrapper;
-    return wrapper.hazardPtr_->node_;
+    return wrapper.hazardPtr->node;
 }
 
 template <class T>
-bool isHazardPtr(Node<T>* node)
+bool IsHazardPtr(Node<T>* node)
 {
     for (size_t i = 0; i < MAX_THREAD_NUM; ++i)
     {
-        if (hazardPtrs<T>[i].node_.load() == node)
+        if (g_hazardPtrs<T>[i].node.load() == node)
         {
             return true;
         }
@@ -101,65 +95,69 @@ bool isHazardPtr(Node<T>* node)
 }
 
 template <class T>
-class DelList
+struct DelList
 {
-public:
-    void delNode(Node<T>* node)
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    std::array<Node<T>*, 2 * MAX_THREAD_NUM + 1> delList{};
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    size_t   delCount = 0;
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    std::atomic<std::thread::id> id;
+
+    void DelNode(Node<T>* node)
     {
-        delList_[delCount_++] = node;
-        if (delCount_ >= 2 * MAX_THREAD_NUM)
+        delList[delCount++] = node;
+        if (delCount>= 2 * MAX_THREAD_NUM)
         {
-            scan();
+            Scan();
         }
     }
 
-public:
-    void scan()
+private:
+    void Scan()
     {
-        Node<T>* newDelList[2 * MAX_THREAD_NUM + 1] = {};
+        std::array<Node<T>*, 2 * MAX_THREAD_NUM + 1> newDelList{};
         size_t newDelCount = 0;
-        for (size_t i = 0; i < delCount_; i++)
+        for (size_t i = 0; i < delCount; i++)
         {
-            if (isHazardPtr(delList_[i]))
+            if (IsHazardPtr(delList[i]))
             {
-                newDelList[newDelCount++] = delList_[i];
+                newDelList[newDelCount++] = delList[i];
             }
             else
             {
-                delete delList_[i];
+                delete delList[i];
             }
         }
         
-        std::memcpy(delList_, newDelList, 2 * MAX_THREAD_NUM * sizeof(Node<T>*));
-        delCount_ = newDelCount;
+        delList = newDelList;
+        delCount = newDelCount;
     }
-
-    Node<T>* delList_[2 * MAX_THREAD_NUM + 1] = {};
-    size_t   delCount_ = 0;
-    std::atomic<std::thread::id> id_;
 
 }; // class DelList
 
 template <class T>
-DelList<T> delLists[MAX_THREAD_NUM];
+std::array<DelList<T>, MAX_THREAD_NUM> g_delLists;
 
 template <class T>
-class DelListWrapper
+struct DelListWrapper
 {
-public:
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    DelList<T>* delList;
+
     DelListWrapper()
     {
         for (size_t i = 0; i < MAX_THREAD_NUM; ++i)
         {
             std::thread::id id;
-            if (delLists<T>[i].id_.compare_exchange_strong(id, std::this_thread::get_id()))
+            if (g_delLists<T>[i].id.compare_exchange_strong(id, std::this_thread::get_id()))
             {
-                delList_ = &delLists<T>[i];
+                delList = &g_delLists<T>[i];
                 break;
             }
         }
 
-        assert(delList_ != nullptr && "There are more threads than the maximum number");
+        assert(delList != nullptr && "There are more threads than the maximum number");
     }
 
     NO_MOVE_SEMANTIC(DelListWrapper);
@@ -167,18 +165,15 @@ public:
 
     ~DelListWrapper()
     {
-        delList_->id_.store(std::thread::id{});
+        delList->id.store(std::thread::id{});
     }
-
-public:
-    DelList<T>* delList_;
 };
 
 template <class T>
-DelList<T>* getDelList()
+DelList<T>* GetDelList()
 {
     thread_local static DelListWrapper<T> wrapper;
-    return wrapper.delList_;
+    return wrapper.delList;
 }
 
 template <class T>
@@ -194,8 +189,8 @@ public:
 
     void Push(T val)
     {
-        auto *newNode = new Node<T>{val, head_.load(std::memory_order_acquire)};
-        while (!head_.compare_exchange_weak(newNode->next_, newNode, std::memory_order_release))
+        auto *newNode = new Node<T>{val, head_.load()};
+        while (!head_.compare_exchange_weak(newNode->next, newNode))
         {
             ;
         }
@@ -204,35 +199,36 @@ public:
     std::optional<T> Pop()
     {
         Node<T> *curHead = nullptr;
-        std::atomic<Node<T>*>& hazardPtr = getHazardPtr<T>();
-        DelList<T>* delList = getDelList<T>();
+        std::atomic<Node<T>*>& hazardPtr = GetHazardPtr<T>();
+        DelList<T>* delList = GetDelList<T>();
 
         do
         {
-            curHead = head_.load(std::memory_order_acquire);
+            curHead = head_.load();
             if (curHead == nullptr)
             {
                 return std::nullopt;
             }
 
-            hazardPtr.store(curHead);
-            if (curHead != head_.load(std::memory_order_acquire))
-            {
-                continue;
-            }
+            Node<T> *tmp = nullptr;
+            do {
+                tmp = curHead;
+                hazardPtr.store(curHead);
+                curHead = head_.load();
+            } while (curHead != tmp);
 
-        } while (!head_.compare_exchange_weak(curHead, curHead->next_, std::memory_order_acquire));
+        } while (!head_.compare_exchange_weak(curHead, curHead->next));
         
-        T tmp = curHead->key_;
+        T tmp = curHead->key;
         hazardPtr.store(nullptr);
-        delList->delNode(curHead);
+        delList->DelNode(curHead);
         
         return tmp;
     }
 
     bool IsEmpty()
     {
-        return head_.load(std::memory_order_acquire) == nullptr;
+        return head_.load() == nullptr;
     }
 
 private:
