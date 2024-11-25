@@ -16,8 +16,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Flags
-include(cmake/Flags.cmake)
+set(CMAKE_CXX_FLAGS -pthread)
 
 # Cody style
 include(cmake/ClangTidy.cmake)
