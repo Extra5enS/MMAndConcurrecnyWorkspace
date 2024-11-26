@@ -49,4 +49,21 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ninja run_all_gtests
     
+  tsan-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: seanmiddleditch/gha-setup-ninja@master
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -GNinja -DPROJECT_USE_TSAN=true
+
+    - name: CodeStyle
+      working-directory: ${{github.workspace}}/build
+      run: ninja clang-tidy-check
+
+    - name: BuildAndTest
+      working-directory: ${{github.workspace}}/build
+      run: ninja run_all_gtests
 
