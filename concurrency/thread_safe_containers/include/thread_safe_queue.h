@@ -15,7 +15,7 @@ public:
 
     std::optional<T> Pop() {
         // ... implement this
-        return T{};
+        return T{}; // NOLINT(clang-analyzer-core.StackAddressEscape)
     }
 
     bool IsEmpty() {
