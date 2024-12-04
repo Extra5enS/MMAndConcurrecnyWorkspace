@@ -58,7 +58,7 @@ public:
     static void AddCallback(Callback callback, Args... args) {
         std::function<void()> task = std::bind(std::forward<Callback>(callback),
                                                std::forward<Args>(args)...);
-        tasks_.push(task);
+        //tasks_.push(task);
     }
 
 private:
