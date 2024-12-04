@@ -3,7 +3,6 @@
 
 #include "concurrency/event_loop/include/event_loop.h"
 
-
 TEST(EventLoopTests, DefaultEventLoopTest) {
     size_t check = 0;
     {

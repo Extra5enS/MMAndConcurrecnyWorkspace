@@ -28,6 +28,7 @@ public:
     
     template<class Callback, class... Args>
     void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
+        // NOLINTNEXTLINE(modernize-avoid-bind)
         std::function<void()> task = std::bind(std::forward<Callback>(callback),
                                                std::forward<Args>(args)...);
         tasks_.push(task);
@@ -62,6 +63,7 @@ public:
 
     template<class Callback, class... Args>
     static void AddCallback(Callback callback, Args... args) {
+        // NOLINTNEXTLINE(modernize-avoid-bind)
         std::function<void()> task = std::bind(std::forward<Callback>(callback),
                                                std::forward<Args>(args)...);
         tasks_.push(task);
@@ -72,6 +74,7 @@ private:
     std::queue<std::function<void()>> oldTasks_;
 };
 
+// NOLINTNEXTLINE(cert-err58-cpp, fuchsia-statically-constructed-objects, misc-definitions-in-headers)
 std::queue<std::function<void()>> EventLoopScope::tasks_;
 
 
