@@ -7,7 +7,7 @@
 
 #include "concurrency/lock_free_stack/include/lock_free_stack.h"
 
-TEST(LockFreeStackTest, DISABLED_SingleThreadTest)
+TEST(LockFreeStackTest, SingleThreadTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
@@ -27,7 +27,7 @@ TEST(LockFreeStackTest, DISABLED_SingleThreadTest)
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(LockFreeStackTest, DISABLED_MultithreadingTest)
+TEST(LockFreeStackTest, MultithreadingTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
@@ -84,7 +84,7 @@ TEST(LockFreeStackTest, DISABLED_MultithreadingTest)
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(LockFreeStackTest, DISABLED_LoadTest)
+TEST(LockFreeStackTest, LoadTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
