@@ -1,44 +1,62 @@
 #ifndef CONCURRENCY_EVENT_LOOP_INCLUDE_EVENT_LOOP_H
 #define CONCURRENCY_EVENT_LOOP_INCLUDE_EVENT_LOOP_H
 
+#include <queue>
+// #include <utility>
+#include <stack>
+
 #include "base/macros.h"
 
-// event loop это механизм, завязанный на событиях и их асинхронной работе. Вы делаете post колбета, и он когда-нибудь исполнится
-// В нашем случае будет использоваться EventLoopScope, и все колбеки должны исполниться при разрушении EventLoopScope.
-// Для взаимодействия 
-
+using TaskType = std::function<void()>;
 class EventLoop {
 public:
     EventLoop() = default;
-    ~EventLoop() = default;
+    ~EventLoop() {
+        while (!tasks_.empty()) {
+            auto task = std::move(tasks_.front());
+            tasks_.pop();
+            task();
+        }
+    }
 
     NO_MOVE_SEMANTIC(EventLoop);
     NO_COPY_SEMANTIC(EventLoop);    
-    
+
     template<class Callback, class... Args>
-    void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
-        // impl
+    void AddCallback(Callback callback, Args... args) {
+        auto task = [callable = std::forward<Callback>(callback),
+                     args = std::tuple<Args...>(args...)] { std::apply(callable, args); };
+        tasks_.emplace(std::move(task));
     }
 private:
-    // add your fields
+    std::queue<TaskType> tasks_;
 };
 
 class EventLoopScope {
-
 public:
-    EventLoopScope() = default;
-    ~EventLoopScope() = default;
+    EventLoopScope() {
+        eventLoops_.push(new EventLoop);
+    }
+    ~EventLoopScope() {
+        assert(!eventLoops_.empty());
+        delete eventLoops_.top();
+        eventLoops_.pop();
+    }
 
     NO_COPY_SEMANTIC(EventLoopScope);
     NO_MOVE_SEMANTIC(EventLoopScope);
 
     template<class Callback, class... Args>
     static void AddCallback(Callback callback, Args... args) {
-        // impl
+        if (eventLoops_.empty()) {
+            return;
+        }
+        auto *top = eventLoops_.top();
+        top->AddCallback(callback, args...);
     }
 private:
-    // add your fields
+    static std::stack<EventLoop*> eventLoops_; 
 };
 
-
+std::stack<EventLoop*> EventLoopScope::eventLoops_{}; // NOLINT(misc-definitions-in-headers, fuchsia-statically-constructed-objects, cert-err58-cpp)
 #endif
