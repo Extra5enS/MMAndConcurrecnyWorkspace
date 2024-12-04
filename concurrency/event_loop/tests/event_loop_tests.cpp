@@ -8,7 +8,7 @@ TEST(EventLoopTests, DefaultEventLoopTest) {
     size_t check = 0;
     {
         EventLoop loop;
-        loop.AddCallback([&check]() {
+        loop.AddCallback([&check] {
             check++;
         });
         ASSERT_EQ(check, 0);
@@ -29,7 +29,7 @@ TEST(EventLoopTests, DefaultEventLoopTest) {
     ASSERT_EQ(str, "AB");
 }
 
-TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
+TEST(EventLoopTests, EventLoopScopeTest) {
     std::string str;
     {
         EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)

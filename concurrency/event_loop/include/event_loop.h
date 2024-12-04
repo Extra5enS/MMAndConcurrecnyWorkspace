@@ -40,7 +40,12 @@ private:
 class EventLoopScope {
 
 public:
-    EventLoopScope() = default;
+    EventLoopScope()
+    {
+        oldTasks_ = tasks_;
+        tasks_ = {};
+    }
+
     ~EventLoopScope()
     {
         while (!tasks_.empty())
@@ -49,6 +54,7 @@ public:
             task();
             tasks_.pop();
         }
+        tasks_ = oldTasks_;
     }
 
     NO_COPY_SEMANTIC(EventLoopScope);
@@ -58,12 +64,15 @@ public:
     static void AddCallback(Callback callback, Args... args) {
         std::function<void()> task = std::bind(std::forward<Callback>(callback),
                                                std::forward<Args>(args)...);
-        //tasks_.push(task);
+        tasks_.push(task);
     }
 
 private:
-    std::queue<std::function<void()>> tasks_;
+    static std::queue<std::function<void()>> tasks_;
+    std::queue<std::function<void()>> oldTasks_;
 };
+
+std::queue<std::function<void()>> EventLoopScope::tasks_;
 
 
 #endif
