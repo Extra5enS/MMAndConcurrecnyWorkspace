@@ -3,6 +3,9 @@
 
 #include "base/macros.h"
 
+#include <functional>
+#include <queue>
+
 // event loop это механизм, завязанный на событиях и их асинхронной работе. Вы делаете post колбета, и он когда-нибудь исполнится
 // В нашем случае будет использоваться EventLoopScope, и все колбеки должны исполниться при разрушении EventLoopScope.
 // Для взаимодействия 
@@ -10,34 +13,56 @@
 class EventLoop {
 public:
     EventLoop() = default;
-    ~EventLoop() = default;
+    ~EventLoop()
+    {
+        while (!tasks_.empty())
+        {
+            auto task = tasks_.front();
+            task();
+            tasks_.pop();
+        }
+    }
 
     NO_MOVE_SEMANTIC(EventLoop);
-    NO_COPY_SEMANTIC(EventLoop);    
+    NO_COPY_SEMANTIC(EventLoop);
     
     template<class Callback, class... Args>
     void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
-        // impl
+        std::function<void()> task = std::bind(std::forward<Callback>(callback),
+                                               std::forward<Args>(args)...);
+        tasks_.push(task);
     }
+
 private:
-    // add your fields
+    std::queue<std::function<void()>> tasks_;
 };
 
 class EventLoopScope {
 
 public:
     EventLoopScope() = default;
-    ~EventLoopScope() = default;
+    ~EventLoopScope()
+    {
+        while (!tasks_.empty())
+        {
+            auto task = tasks_.front();
+            task();
+            tasks_.pop();
+        }
+    }
 
     NO_COPY_SEMANTIC(EventLoopScope);
     NO_MOVE_SEMANTIC(EventLoopScope);
 
     template<class Callback, class... Args>
     static void AddCallback(Callback callback, Args... args) {
-        // impl
+        std::function<void()> task = std::bind(std::forward<Callback>(callback),
+                                               std::forward<Args>(args)...);
+        tasks_.push(task);
     }
+
 private:
-    // add your fields
+    std::queue<std::function<void()>> tasks_;
 };
 
 

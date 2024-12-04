@@ -29,7 +29,7 @@ TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
     ASSERT_EQ(str, "AB");
 }
 
-TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
+TEST(EventLoopTests, EventLoopScopeTest) {
     std::string str;
     {
         EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
