@@ -5,7 +5,7 @@
 #include <atomic>
 #include <cstring>
 
-TEST(ThreadPoolTests, DISABLED_DefaultThreadPoolTests) {
+TEST(ThreadPoolTests, DefaultThreadPoolTests) {
     static constexpr size_t THREAD_COUNT = 5;
     static constexpr size_t COUNT = 100'000;
     std::atomic_size_t count;
