@@ -2,63 +2,41 @@
 #define CONCURRENCY_THREAD_POOL_INCLUDE_THREAD_POOL_H
 
 #include "base/macros.h"
+#include "concurrency/thread_safe_containers/include/thread_safe_queue.h"
+
 #include <cstddef>
 #include <thread>
 #include <queue>
+#include <future>
 
 class ThreadPool {
     using TaskType = std::function<void()>;
 public:
-    explicit ThreadPool([[maybe_unused]] size_t countOfTask) : stop_(false), threadCount_(countOfTask) {
-        // workers_.reserve(threadCount_);
+    explicit ThreadPool([[maybe_unused]] size_t countOfTask) : threadCount_(countOfTask) {
+        workers_.reserve(threadCount_);
 
-        // auto callable = [this]() {
-        //     std::function<void()> task;
-        //     while (true) {
-        //         std::unique_lock<std::mutex> lock(this->mutex_);
-
-        //         std::cout << "AA" << std::endl;
-        //         cv_.wait(lock, [this]() { return !this->tasks_.empty() || this->stop_; });
-            
-        //         // while (tasks_.empty() && !stop_)
-        //         //     cv_.wait(lock);
-
-        //         if (this->stop_) {
-        //             return;
-        //         }
-
-        //         task = std::move(this->tasks_.front());
-        //         this->tasks_.pop();
-        //         this->mutex_.unlock();
-
-        //         task();
-        //     }
-        // };
+        auto callable = [this]() -> void {
+            while (true) {
+                if (!tasks_.IsEmpty())
+                {
+                    auto task = std::move(tasks_.Pop());
+                    
+                    if (task.has_value())
+                    {
+                        (*task)();
+                    }
+                }
+                else if (stop_.load())
+                {
+                    tasks_.ReleaseConsumers();
+                    return;
+                }
+            }
+        };
 
         for (size_t i = 0; i < threadCount_; i++)
         {
-            workers_.emplace_back([this]() {
-            std::function<void()> task;
-            while (true) {
-                std::unique_lock<std::mutex> lock(this->mutex_);
-
-                std::cout << "AA" << std::endl;
-                cv_.wait(lock, [this]() { return !this->tasks_.empty() || this->stop_; });
-            
-                // while (tasks_.empty() && !stop_)
-                //     cv_.wait(lock);
-
-                if (this->stop_) {
-                    return;
-                }
-
-                task = std::move(this->tasks_.front());
-                this->tasks_.pop();
-                this->mutex_.unlock();
-
-                // task();
-            }
-        });
+            workers_.emplace_back(callable);
         }
     }
 
@@ -69,35 +47,30 @@ public:
     template<class Task, class... Args>
     void PostTask([[maybe_unused]] Task task, [[maybe_unused]] Args... args) {
         auto postTask = [callable = std::forward<Task>(task)] { return callable(); };
-        
-        std::unique_lock<std::mutex> lock(mutex_);
-        tasks_.emplace(std::move(postTask));
-        allTaskCount_++;
-        cv_.notify_one();
+        tasks_.Push(postTask);
     }
     
     void WaitForAllTasks() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        stop_ = true;
+        stop_.store(true);
+
+        std::unique_lock lock(mutex_);
         cv_.notify_all();
-        mutex_.unlock();
+        lock.unlock();
 
         for (auto &worker : workers_) {
             worker.join();
         }
-        std::cout << allTaskCount_ << std::endl;
     }
 
 private:
+    const size_t threadCount_;
+    
     std::vector<std::thread> workers_ = {};
-    std::queue<TaskType> tasks_ = {};
+    ThreadSafeQueue<TaskType> tasks_ = {}; 
+
+    std::atomic<bool> stop_{false};
     std::mutex mutex_ = {};
     std::condition_variable cv_;
-
-    bool stop_;
-    size_t allTaskCount_ = {};
-    size_t completedTaskCount_ = {};
-    const size_t threadCount_;
 };
 
 #endif
