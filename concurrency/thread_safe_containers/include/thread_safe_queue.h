@@ -23,9 +23,9 @@ public:
     std::optional<T> Pop() {
         std::unique_lock lock(mutex_);
 
-        waitFinishCond_.wait(lock, [&](){return !queue_.empty() || needRelease_;});
+        waitFinishCond_.wait(lock, [&](){return !queue_.empty() || needRelease_.load();});
 
-        if (needRelease_)
+        if (needRelease_.load())
         {
             return std::nullopt;
         }
@@ -42,7 +42,7 @@ public:
     }
 
     void ReleaseConsumers() {
-        needRelease_ = true;
+        needRelease_.store(true);
         waitFinishCond_.notify_all();
     }
 
@@ -51,7 +51,7 @@ private:
     std::mutex mutex_;
     std::condition_variable waitFinishCond_;
     
-    bool needRelease_ = false;
+    std::atomic<bool> needRelease_{false};
 };
 
 #endif
