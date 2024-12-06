@@ -4,7 +4,7 @@
 #include "concurrency/event_loop/include/event_loop.h"
 
 
-TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
+TEST(EventLoopTests, DefaultEventLoopTest) {
     size_t check = 0;
     {
         EventLoop loop;
@@ -29,7 +29,7 @@ TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
     ASSERT_EQ(str, "AB");
 }
 
-TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
+TEST(EventLoopTests, EventLoopScopeTest) {
     std::string str;
     {
         EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
