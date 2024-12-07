@@ -5,7 +5,7 @@
 
 // event loop это механизм, завязанный на событиях и их асинхронной работе. Вы делаете post колбета, и он когда-нибудь исполнится
 // В нашем случае будет использоваться EventLoopScope, и все колбеки должны исполниться при разрушении EventLoopScope.
-// Для взаимодействия 
+// Для взаимодействия
 
 class EventLoop {
 public:
@@ -13,8 +13,8 @@ public:
     ~EventLoop() = default;
 
     NO_MOVE_SEMANTIC(EventLoop);
-    NO_COPY_SEMANTIC(EventLoop);    
-    
+    NO_COPY_SEMANTIC(EventLoop);
+
     template<class Callback, class... Args>
     void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
         // impl
@@ -33,7 +33,7 @@ public:
     NO_MOVE_SEMANTIC(EventLoopScope);
 
     template<class Callback, class... Args>
-    static void AddCallback(Callback callback, Args... args) {
+    static void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
         // impl
     }
 private:

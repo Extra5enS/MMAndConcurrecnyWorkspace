@@ -3,31 +3,60 @@
 
 // реализуйте потоко защищенную очередь, которая в Pop ожидала бы появления нового элемента, если очередь пусткая
 
-#include<optional>
+#include <optional>
+#include <mutex>
+#include <queue>
+#include <condition_variable>
 
-template<class T>
+template <class T>
 class ThreadSafeQueue {
 public:
+    void Push(T val)
+    {
+        std::unique_lock lock {mutex_};
 
-    void Push([[maybe_unused]] T val) {
-        // ... implement this
+        queue_.emplace(std::move(val));
+
+        condPushedNewValue_.notify_one();
     }
 
-    std::optional<T> Pop() {
-        // ... implement this
-        return T{};
+    std::optional<T> Pop()
+    {
+        std::unique_lock lock {mutex_};
+
+        while (queue_.empty() && !release_) {
+            condPushedNewValue_.wait(lock);
+        }
+
+        if (release_) {
+            return std::nullopt;
+        }
+
+        T ret = std::move(queue_.front());
+        queue_.pop();
+
+        return ret;
     }
 
-    bool IsEmpty() {
-        // ... implement this
-        return true;
+    bool IsEmpty()
+    {
+        return queue_.empty();
     }
 
-    void ReleaseConsumers() {
-        // ... this method should release all threads that wait in Pop() method for new elems
+    void ReleaseConsumers()
+    {
+        std::unique_lock lock {mutex_};
+
+        release_ = true;
+
+        condPushedNewValue_.notify_all();
     }
 
 private:
+    std::queue<T> queue_;
+    std::mutex mutex_;
+    std::condition_variable condPushedNewValue_;
+    bool release_ = false;
 };
 
 #endif
