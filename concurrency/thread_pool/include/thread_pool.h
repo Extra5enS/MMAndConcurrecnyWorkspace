@@ -32,6 +32,9 @@ public:
                     {
                         (*task)();
                     }
+
+                    numComplTasks_++;
+                    complTasks_.notify_all();
                 }
                 else if (end_.load())
                 {
@@ -64,6 +67,7 @@ public:
                         std::apply(callback, args);
                      };
         tasks_.Push(func);
+        numTasks_++;
 
         {std::unique_lock lock(mutex_); cv_.notify_one();}
     }
@@ -71,7 +75,11 @@ public:
     void WaitForAllTasks() {
         end_.store(true);
 
-        {std::unique_lock lock(mutex_); cv_.notify_all();}
+        std::unique_lock lock(mutex_);
+        cv_.notify_all();
+
+        complTasks_.wait(lock, [this]()->bool { return tasks_.IsEmpty() &&
+                                                       numTasks_ == numComplTasks_.load(); });
     }
 
 private:
@@ -85,6 +93,10 @@ private:
 
     std::atomic<bool> end_{false};
     std::mutex mutex_;
+
+    size_t numTasks_ = 0;
+    std::atomic<size_t> numComplTasks_{0};
+    std::condition_variable complTasks_;
 };
 
 #endif
