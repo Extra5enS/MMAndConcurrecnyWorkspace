@@ -34,11 +34,11 @@ public:
                     }
 
                     numComplTasks_++;
-                    complTasks_.notify_all();
                 }
                 else if (end_.load())
                 {
                     tasks_.ReleaseConsumers();
+                    complTasks_.notify_all();
                     return;
                 }
             }
