@@ -3,12 +3,11 @@
 
 #include "concurrency/event_loop/include/event_loop.h"
 
-
-TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
+TEST(EventLoopTests, DefaultEventLoopTest) {
     size_t check = 0;
     {
         EventLoop loop;
-        loop.AddCallback([&check]() {
+        loop.AddCallback([&check] {
             check++;
         });
         ASSERT_EQ(check, 0);
@@ -29,7 +28,7 @@ TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
     ASSERT_EQ(str, "AB");
 }
 
-TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
+TEST(EventLoopTests, EventLoopScopeTest) {
     std::string str;
     {
         EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
@@ -52,5 +51,40 @@ TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
         ASSERT_EQ(str, "CD");
     }
     ASSERT_EQ(str, "CDAB");
+}
+
+TEST(EventLoopTests, EventLoopScopeTest2) {
+    std::string str;
+    {
+        EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
+        EventLoopScope::AddCallback([&str]() {
+            str += "A";
+        });
+        EventLoopScope::AddCallback([&str]() {
+            str += "B";
+        });
+        {
+            EventLoopScope scope1; // NOLINT(clang-diagnostic-unused-variable)
+            EventLoopScope::AddCallback([&str]() {
+                str += "C";
+            });
+            EventLoopScope::AddCallback([&str]() {
+                str += "D";
+            });
+            {
+                EventLoopScope scope2; // NOLINT(clang-diagnostic-unused-variable)
+                EventLoopScope::AddCallback([&str]() {
+                    str += "E";
+                });
+                EventLoopScope::AddCallback([&str]() {
+                    str += "F";
+                });
+                ASSERT_EQ(str, "");
+            }
+            ASSERT_EQ(str, "EF");
+        }
+        ASSERT_EQ(str, "EFCD");
+    }
+    ASSERT_EQ(str, "EFCDAB");
 }
 
