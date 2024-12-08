@@ -53,3 +53,38 @@ TEST(EventLoopTests, EventLoopScopeTest) {
     ASSERT_EQ(str, "CDAB");
 }
 
+TEST(EventLoopTests, EventLoopScopeTest2) {
+    std::string str;
+    {
+        EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
+        EventLoopScope::AddCallback([&str]() {
+            str += "A";
+        });
+        EventLoopScope::AddCallback([&str]() {
+            str += "B";
+        });
+        {
+            EventLoopScope scope1; // NOLINT(clang-diagnostic-unused-variable)
+            EventLoopScope::AddCallback([&str]() {
+                str += "C";
+            });
+            EventLoopScope::AddCallback([&str]() {
+                str += "D";
+            });
+            {
+                EventLoopScope scope2; // NOLINT(clang-diagnostic-unused-variable)
+                EventLoopScope::AddCallback([&str]() {
+                    str += "E";
+                });
+                EventLoopScope::AddCallback([&str]() {
+                    str += "F";
+                });
+                ASSERT_EQ(str, "");
+            }
+            ASSERT_EQ(str, "EF");
+        }
+        ASSERT_EQ(str, "EFCD");
+    }
+    ASSERT_EQ(str, "EFCDAB");
+}
+
