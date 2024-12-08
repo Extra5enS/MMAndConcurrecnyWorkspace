@@ -5,6 +5,8 @@
 
 #include <functional>
 #include <queue>
+#include <stack>
+#include <cassert>
 
 // event loop это механизм, завязанный на событиях и их асинхронной работе. Вы делаете post колбета, и он когда-нибудь исполнится
 // В нашем случае будет использоваться EventLoopScope, и все колбеки должны исполниться при разрушении EventLoopScope.
@@ -28,9 +30,10 @@ public:
     
     template<class Callback, class... Args>
     void AddCallback([[maybe_unused]] Callback callback, [[maybe_unused]] Args... args) {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        std::function<void()> task = std::bind(std::forward<Callback>(callback),
-                                               std::forward<Args>(args)...);
+        auto task = [task = std::forward<Callback>(callback), 
+                     args = std::tuple<Args...>(args...)] {
+                        std::apply(task, args);
+                     };
         tasks_.push(task);
     }
 
@@ -43,39 +46,35 @@ class EventLoopScope {
 public:
     EventLoopScope()
     {
-        oldTasks_ = tasks_;
-        tasks_ = {};
+        eventLoops_.push(new EventLoop());
     }
 
     ~EventLoopScope()
     {
-        while (!tasks_.empty())
-        {
-            auto task = tasks_.front();
-            task();
-            tasks_.pop();
-        }
-        tasks_ = oldTasks_;
+        assert(!eventLoops_.empty());
+
+        delete eventLoops_.top();
+        eventLoops_.pop();
     }
 
     NO_COPY_SEMANTIC(EventLoopScope);
     NO_MOVE_SEMANTIC(EventLoopScope);
 
     template<class Callback, class... Args>
-    static void AddCallback(Callback callback, Args... args) {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        std::function<void()> task = std::bind(std::forward<Callback>(callback),
-                                               std::forward<Args>(args)...);
-        tasks_.push(task);
+    static void AddCallback(Callback callback, Args... args)
+    {
+        if (!eventLoops_.empty())
+        {
+            eventLoops_.top()->AddCallback(callback, args...);
+        }
     }
 
 private:
-    static std::queue<std::function<void()>> tasks_;
-    std::queue<std::function<void()>> oldTasks_;
+    static std::stack<EventLoop*> eventLoops_;
 };
 
 // NOLINTNEXTLINE(cert-err58-cpp, fuchsia-statically-constructed-objects, misc-definitions-in-headers)
-std::queue<std::function<void()>> EventLoopScope::tasks_;
+std::stack<EventLoop*> EventLoopScope::eventLoops_;
 
 
 #endif
