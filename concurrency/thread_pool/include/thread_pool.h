@@ -13,7 +13,8 @@ class ThreadPool {
     using TaskType = std::function<void()>;
 
 public:
-    explicit ThreadPool([[maybe_unused]] size_t countOfThread) : threadCount_(countOfThread) {
+    explicit ThreadPool([[maybe_unused]] size_t countOfThread) : threadCount_(countOfThread)
+    {
         threads_.reserve(threadCount_);
 
         auto threadWork = [this]() -> void
@@ -46,15 +47,23 @@ public:
         }
     }
 
-    ~ThreadPool() = default;
+    ~ThreadPool()
+    {
+        for (auto &thread : threads_) {
+            thread.join();
+        }
+    }
+
     NO_COPY_SEMANTIC(ThreadPool);
     NO_MOVE_SEMANTIC(ThreadPool);
 
     template<class Task, class... Args>
     void PostTask([[maybe_unused]] Task task, [[maybe_unused]] Args... args) {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        tasks_.Push(std::bind(std::forward<Task>(task),
-                              std::forward<Args>(args)...));
+        auto func = [callback = std::forward<Task>(task), 
+                     args = std::tuple<Args...>(args...)] {
+                        std::apply(callback, args);
+                     };
+        tasks_.Push(func);
 
         {std::unique_lock lock(mutex_); cv_.notify_one();}
     }
@@ -63,10 +72,6 @@ public:
         end_.store(true);
 
         {std::unique_lock lock(mutex_); cv_.notify_all();}
-
-        for (auto &thread : threads_) {
-            thread.join();
-        }
     }
 
 private:
