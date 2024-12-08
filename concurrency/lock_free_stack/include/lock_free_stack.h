@@ -32,9 +32,9 @@ public:
         T ptr = nullptr;
 
         do {
-            ptr = p.load();
-            hazardPtr.store(ptr);
-        } while (ptr != p.load());
+            ptr = p.load(std::memory_order_acquire);
+            hazardPtr.store(ptr, std::memory_order_release);
+        } while (ptr != p.load(std::memory_order_acquire));
 
         return ptr;
     }
@@ -42,13 +42,13 @@ public:
     std::atomic<T> &GetPtr()
     {
         thread_local static std::atomic<HazardPointerDomain *> &domain = GetDomain(std::this_thread::get_id());
-        return domain.load()->GetPtr();
+        return domain.load(std::memory_order_acquire)->GetPtr();
     }
 
     void Retire(std::atomic<T> &ptr)
     {
         thread_local static std::atomic<HazardPointerDomain *> &domain = GetDomain(std::this_thread::get_id());
-        return domain.load()->Retire(ptr);
+        return domain.load(std::memory_order_acquire)->Retire(ptr);
     }
 
 private:
@@ -66,23 +66,23 @@ private:
             }
 
             for (size_t i = 0; i < pointersSize.load(); ++i) {
-                T ptr = pointers[i].load();
+                T ptr = pointers[i].load(std::memory_order_acquire);
                 delete ptr;
             }
         }
 
         std::atomic<T> &GetPtr()
         {
-            std::atomic<T> &ptr = pointers[pointersSize.load()];
-            pointersSize.fetch_add(1);
+            std::atomic<T> &ptr = pointers[pointersSize.load(std::memory_order_acquire)];
+            pointersSize.fetch_add(1, std::memory_order_release);
             return ptr;
         }
 
         void Retire(std::atomic<T> &p)
         {
-            T ptr = p.load();
-            p.store(nullptr);
-            pointersSize.fetch_sub(1);
+            T ptr = p.load(std::memory_order_acquire);
+            p.store(nullptr, std::memory_order_release);
+            pointersSize.fetch_sub(1, std::memory_order_release);
             retireList[retireListSize++] = ptr;
             if (retireListSize >= MAX_POINTERS - 1) {
                 FreeRetireList();
@@ -107,8 +107,8 @@ private:
 
         bool Find(const T ptr) const
         {
-            for (size_t i = 0; i < pointersSize.load() && i < MAX_POINTERS; ++i) {
-                if (pointers[i].load() == ptr) {
+            for (size_t i = 0; i < pointersSize.load(std::memory_order_acquire) && i < MAX_POINTERS; ++i) {
+                if (pointers[i].load(std::memory_order_acquire) == ptr) {
                     return true;
                 }
             }
@@ -135,13 +135,15 @@ private:
     {
         auto *newDomain = new HazardPointerDomain {id, this};
         for (auto &domain : domains_) {
-            if (domain.load() == nullptr) {
+            if (domain.load(std::memory_order_acquire) == nullptr) {
                 HazardPointerDomain *nullDomain = nullptr;
-                if (domain.compare_exchange_strong(nullDomain, newDomain)) {
+                if (domain.compare_exchange_strong(nullDomain, newDomain,
+                                                   std::memory_order_release,
+                                                   std::memory_order_relaxed)) {
                     return domain;
                 }
             }
-            if (domain.load()->id == id) {
+            if (domain.load(std::memory_order_acquire)->id == id) {
                 delete newDomain;
                 return domain;
             }
@@ -154,10 +156,10 @@ private:
     bool FindDomain(const T ptr) const
     {
         for (auto &domain : domains_) {
-            if (domain.load() == nullptr) {
+            if (domain.load(std::memory_order_acquire) == nullptr) {
                 return false;
             }
-            if (domain.load()->Find(ptr)) {
+            if (domain.load(std::memory_order_acquire)->Find(ptr)) {
                 return true;
             }
         }
@@ -177,8 +179,9 @@ public:
         Node *curHead = head_.load();
         newNode->next = curHead;
 
-        while (!head_.compare_exchange_weak(newNode->next, newNode)) {
-        }
+        while (!head_.compare_exchange_weak(newNode->next, newNode,
+                                            std::memory_order_release,
+                                            std::memory_order_relaxed)) {}
     }
 
     std::optional<T> Pop()
@@ -192,7 +195,9 @@ public:
                 return std::nullopt;
             }
 
-            if (head_.compare_exchange_strong(curHead, curHead->next)) {
+            if (head_.compare_exchange_strong(curHead, curHead->next,
+                                              std::memory_order_acquire,
+                                              std::memory_order_relaxed)) {
                 T val = curHead->val;
                 hazardManager_.Retire(hazardPtr);
                 return val;
@@ -202,7 +207,7 @@ public:
 
     bool IsEmpty()
     {
-        return head_.load() == nullptr;
+        return head_.load(std::memory_order_acquire) == nullptr;
     }
 
 private:
