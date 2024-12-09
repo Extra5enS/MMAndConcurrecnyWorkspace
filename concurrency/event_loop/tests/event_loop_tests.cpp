@@ -6,25 +6,26 @@
 
 TEST(EventLoopTests, DISABLED_DefaultEventLoopTest) {
     size_t check = 0;
-    EventLoop loop;
-
-    loop.AddCallback([&check]() {
-        check++;
-    });
-    ASSERT_EQ(check, 0);
-    loop.~EventLoop();
+    {
+        EventLoop loop;
+        loop.AddCallback([&check]() {
+            check++;
+        });
+        ASSERT_EQ(check, 0);
+    }
     ASSERT_EQ(check, 1);
 
     std::string str;
-    EventLoop loop1;
-    loop1.AddCallback([&str] {
-        str += "A";
-    });
-    loop1.AddCallback([&str] {
-        str += "B";
-    });
-    ASSERT_EQ(str, "");
-    loop1.~EventLoop();
+    {
+        EventLoop loop1;
+        loop1.AddCallback([&str] {
+            str += "A";
+        });
+        loop1.AddCallback([&str] {
+            str += "B";
+        });
+        ASSERT_EQ(str, "");
+    }
     ASSERT_EQ(str, "AB");
 }
 
@@ -39,7 +40,7 @@ TEST(EventLoopTests, DISABLED_EventLoopScopeTest) {
             str += "B";
         });
         {
-            EventLoopScope scope; // NOLINT(clang-diagnostic-unused-variable)
+            EventLoopScope scope1; // NOLINT(clang-diagnostic-unused-variable)
             EventLoopScope::AddCallback([&str]() {
                 str += "C";
             });
