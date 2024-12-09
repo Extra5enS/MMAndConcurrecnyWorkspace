@@ -65,6 +65,19 @@ private:
         // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
         std::atomic<std::thread::id> id;
 
+        DelList() = default;
+
+        NO_COPY_SEMANTIC(DelList);
+        NO_MOVE_SEMANTIC(DelList);
+
+        ~DelList()
+        {
+            for (size_t i = 0; i < delCount; i++)
+            {
+                delete delList[i];
+            }
+        }
+
         void DelNode(PtrT node, std::array<HazardPtr, MAX_THREAD_NUM>& hazardPtrs)
         {
             delList[delCount++] = node;
@@ -154,8 +167,8 @@ public:
 
 private:
 
-    std::array<HazardPtr, MAX_THREAD_NUM> hazardPtrs_;
-    std::array<DelList, MAX_THREAD_NUM> delLists_;
+    std::array<HazardPtr, MAX_THREAD_NUM> hazardPtrs_{};
+    std::array<DelList, MAX_THREAD_NUM> delLists_{};
 
 }; // class HazardPointerManager
 
