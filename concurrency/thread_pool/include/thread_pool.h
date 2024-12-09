@@ -21,8 +21,11 @@ public:
         {
             while (true)
             {
-                {std::unique_lock lock(mutex_);
-                cv_.wait(lock, [this]()->bool { return !tasks_.IsEmpty() || end_.load(); });}
+                {
+                    std::unique_lock lock(mutex_);
+                    cv_.wait(lock, [this]()->bool { return !tasks_.IsEmpty() ||
+                                                            end_.load(std::memory_order_acquire); });
+                }
 
                 if (!tasks_.IsEmpty())
                 {
@@ -33,12 +36,13 @@ public:
                         (*task)();
                     }
 
-                    numComplTasks_++;
-                }
-                else if (end_.load())
+                    numComplTasks_.fetch_add(1, std::memory_order_release);
+                    complTasks_.notify_all();
+                } 
+                
+                if (end_.load(std::memory_order_acquire))
                 {
                     tasks_.ReleaseConsumers();
-                    complTasks_.notify_all();
                     return;
                 }
             }
@@ -52,7 +56,15 @@ public:
 
     ~ThreadPool()
     {
-        for (auto &thread : threads_) {
+        end_.store(true, std::memory_order_release);
+
+        {
+            std::unique_lock lock(mutex_);
+            cv_.notify_all();
+        }
+
+        for (auto &thread : threads_)
+        {
             thread.join();
         }
     }
@@ -69,17 +81,20 @@ public:
         tasks_.Push(func);
         numTasks_++;
 
-        {std::unique_lock lock(mutex_); cv_.notify_one();}
+        {
+            std::unique_lock lock(mutex_);
+            cv_.notify_one();
+        }
     }
     
     void WaitForAllTasks() {
-        end_.store(true);
-
         std::unique_lock lock(mutex_);
-        cv_.notify_all();
 
         complTasks_.wait(lock, [this]()->bool { return tasks_.IsEmpty() &&
-                                                       numTasks_ == numComplTasks_.load(); });
+                                                       numTasks_ == numComplTasks_.load(std::memory_order_acquire); });
+
+        numTasks_ = 0;
+        numComplTasks_.store(0, std::memory_order_release);
     }
 
 private:
