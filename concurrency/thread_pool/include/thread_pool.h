@@ -34,8 +34,7 @@ public:
             }
         };
 
-        for (size_t i = 0; i < threadCount_; i++)
-        {
+        for (size_t i = 0; i < threadCount_; i++) {
             workers_.emplace_back(callable);
         }
     }
@@ -62,8 +61,9 @@ public:
     }
     
     void WaitForAllTasks() {
-        while (!tasks_.IsEmpty())
+        while (!tasks_.IsEmpty()) {
             cv_.notify_one();
+        }
     }
 
 private:
