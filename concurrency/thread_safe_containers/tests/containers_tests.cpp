@@ -9,7 +9,7 @@
 #include "concurrency/thread_safe_containers/include/fast_thread_safe_map.h"
 
 
-TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
+TEST(ThreadSafeQueueTest, SingleThreadTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
 
@@ -28,7 +28,7 @@ TEST(ThreadSafeQueueTest, DISABLED_SingleThreadTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
+TEST(ThreadSafeQueueTest, MultithreadingTest) {
     ThreadSafeQueue<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
     std::atomic<size_t> pushCounter = 0;
@@ -88,7 +88,7 @@ TEST(ThreadSafeQueueTest, DISABLED_MultithreadingTest) {
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(FastThreadSafeMap, DISABLED_SingleThreadTest) {
+TEST(FastThreadSafeMap, SingleThreadTest) {
     ThreadSafeMap<size_t, size_t> map;
 
     static constexpr size_t MAX_VALUE_TO_PUSH = 10U;
