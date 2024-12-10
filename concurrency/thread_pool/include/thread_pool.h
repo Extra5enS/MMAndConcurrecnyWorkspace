@@ -8,6 +8,7 @@
 #include <thread>
 #include <queue>
 #include <future>
+#include <tuple> 
 
 class ThreadPool {
     using TaskType = std::function<void()>;
@@ -20,7 +21,6 @@ public:
                 if (!tasks_.IsEmpty())
                 {
                     auto task = std::move(tasks_.Pop());
-                    
                     if (task.has_value())
                     {
                         (*task)();
@@ -40,17 +40,7 @@ public:
         }
     }
 
-    ~ThreadPool() = default;
-    NO_COPY_SEMANTIC(ThreadPool);
-    NO_MOVE_SEMANTIC(ThreadPool);
-
-    template<class Task, class... Args>
-    void PostTask([[maybe_unused]] Task task, [[maybe_unused]] Args... args) {
-        auto postTask = [callable = std::forward<Task>(task)] { return callable(); };
-        tasks_.Push(postTask);
-    }
-    
-    void WaitForAllTasks() {
+    ~ThreadPool() {
         stop_.store(true);
 
         std::unique_lock lock(mutex_);
@@ -60,6 +50,20 @@ public:
         for (auto &worker : workers_) {
             worker.join();
         }
+    }
+
+    NO_COPY_SEMANTIC(ThreadPool);
+    NO_MOVE_SEMANTIC(ThreadPool);
+
+    template<class Task, class... Args>
+    void PostTask(Task task, Args... args) {
+        auto postTask = [callable = std::forward<Task>(task), args = std::tuple<Args...>(args...)] { std::apply(callable, args); };
+        tasks_.Push(postTask);
+    }
+    
+    void WaitForAllTasks() {
+        while (!tasks_.IsEmpty())
+            cv_.notify_one();
     }
 
 private:
