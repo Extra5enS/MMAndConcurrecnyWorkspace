@@ -2,27 +2,98 @@
 #define CONCURRENCY_THREAD_POOL_INCLUDE_THREAD_POOL_H
 
 #include "base/macros.h"
+#include "concurrency/thread_safe_containers/include/thread_safe_queue.h"
+
 #include <cstddef>
+#include <thread>
+#include <queue>
+#include <future>
+#include <tuple> 
 
 class ThreadPool {
+    using TaskType = std::function<void()>;
 public:
-    explicit ThreadPool([[maybe_unused]] size_t countOfTask) {
-        // impl
+    explicit ThreadPool([[maybe_unused]] size_t countOfTask) : threadCount_(countOfTask) {
+        workers_.reserve(threadCount_);
+
+        auto callable = [this]() -> void {
+            while (true) {
+                {
+                    std::unique_lock lock(mutex_);
+                    queueCondVar_.wait(lock, [this]() { return !tasks_.IsEmpty() || stop_.load(); });
+                }
+
+                if (!tasks_.IsEmpty()) {
+                    auto task = std::move(tasks_.Pop());
+
+                    if (task.has_value()) {
+                        completedTasksCount_.fetch_add(1);
+                        (*task)();
+                    }
+                }
+                else if (stop_.load()) {
+                    tasks_.ReleaseConsumers();
+                    return;
+                }
+            }
+        };
+
+        for (size_t i = 0; i < threadCount_; i++) {
+            workers_.emplace_back(callable);
+        }
     }
-    ~ThreadPool() = default;
+
+    ~ThreadPool() {
+        stop_.store(true);
+
+        {
+            std::lock_guard lock(mutex_);
+            queueCondVar_.notify_all();    
+        }
+
+        for (auto &worker : workers_) {
+            worker.join();
+        }
+    }
+
     NO_COPY_SEMANTIC(ThreadPool);
     NO_MOVE_SEMANTIC(ThreadPool);
 
     template<class Task, class... Args>
-    void PostTask([[maybe_unused]] Task task, [[maybe_unused]] Args... args) {
-        // impl
+    void PostTask(Task task, Args... args) {
+        auto postTask = [callable = std::forward<Task>(task), args = std::tuple<Args...>(args...)] { std::apply(callable, args); };
+        tasks_.Push(postTask);
+        
+        {
+            std::lock_guard lock(mutex_);
+            tasksCount_++;
+            queueCondVar_.notify_one();
+        }
     }
-
+    
     void WaitForAllTasks() {
-        // impl
+        while (true) {
+            std::lock_guard lock(mutex_);
+            if (tasks_.IsEmpty() && tasksCount_ == completedTasksCount_.load()) {
+                tasksCount_ = 0;
+                completedTasksCount_.store(0);
+                return;
+            }
+            queueCondVar_.notify_one();
+        }
     }
 
 private:
+    const size_t threadCount_;
+    std::vector<std::thread> workers_ = {};
+    
+    ThreadSafeQueue<TaskType> tasks_ = {};
+    std::mutex mutex_ = {};
+    std::condition_variable queueCondVar_;
+    std::atomic<bool> stop_{false};
+
+    size_t tasksCount_ = 0;
+    std::atomic<size_t> completedTasksCount_ = 0;
 };
 
 #endif
