@@ -18,16 +18,20 @@ public:
 
         auto callable = [this]() -> void {
             while (true) {
-                if (!tasks_.IsEmpty())
                 {
+                    std::unique_lock lock(mutex_);
+                    queueCondVar_.wait(lock, [this]() { return !tasks_.IsEmpty() || stop_.load(); });
+                }
+
+                if (!tasks_.IsEmpty()) {
                     auto task = std::move(tasks_.Pop());
-                    if (task.has_value())
-                    {
+
+                    if (task.has_value()) {
+                        completedTasksCount_.fetch_add(1);
                         (*task)();
                     }
                 }
-                else if (stop_.load())
-                {
+                else if (stop_.load()) {
                     tasks_.ReleaseConsumers();
                     return;
                 }
@@ -42,9 +46,10 @@ public:
     ~ThreadPool() {
         stop_.store(true);
 
-        std::unique_lock lock(mutex_);
-        cv_.notify_all();
-        lock.unlock();
+        {
+            std::lock_guard lock(mutex_);
+            queueCondVar_.notify_all();    
+        }
 
         for (auto &worker : workers_) {
             worker.join();
@@ -58,23 +63,37 @@ public:
     void PostTask(Task task, Args... args) {
         auto postTask = [callable = std::forward<Task>(task), args = std::tuple<Args...>(args...)] { std::apply(callable, args); };
         tasks_.Push(postTask);
+        
+        {
+            std::lock_guard lock(mutex_);
+            tasksCount_++;
+            queueCondVar_.notify_one();
+        }
     }
     
     void WaitForAllTasks() {
-        while (!tasks_.IsEmpty()) {
-            cv_.notify_one();
+        while (true) {
+            std::lock_guard lock(mutex_);
+            if (tasks_.IsEmpty() && tasksCount_ == completedTasksCount_.load()) {
+                tasksCount_ = 0;
+                completedTasksCount_.store(0);
+                return;
+            }
+            queueCondVar_.notify_one();
         }
     }
 
 private:
     const size_t threadCount_;
-    
     std::vector<std::thread> workers_ = {};
-    ThreadSafeQueue<TaskType> tasks_ = {}; 
-
-    std::atomic<bool> stop_{false};
+    
+    ThreadSafeQueue<TaskType> tasks_ = {};
     std::mutex mutex_ = {};
-    std::condition_variable cv_;
+    std::condition_variable queueCondVar_;
+    std::atomic<bool> stop_{false};
+
+    size_t tasksCount_ = 0;
+    std::atomic<size_t> completedTasksCount_ = 0;
 };
 
 #endif
