@@ -5,6 +5,7 @@
 
 class Return42 {
     static constexpr size_t RET_42 = 42U;
+
 public:
     size_t Get() const
     {
@@ -12,12 +13,12 @@ public:
     }
 };
 
-TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
+TEST(ReferenceCountingGC, SinglePtrUsage)
 {
     Object<size_t> obj;
     ASSERT_EQ(obj.UseCount(), 0);
     ASSERT_EQ(obj.Get(), nullptr);
-
+    // sets
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> sizeObj = MakeObject<size_t>(VALUE_TO_CREATE);
     ASSERT_EQ(sizeObj.UseCount(), 1U);
@@ -28,14 +29,14 @@ TEST(ReferenceCountingGC, DISABLED_SinglePtrUsage)
     ASSERT_EQ(classObj.UseCount(), 1U);
     ASSERT_NE(classObj.Get(), nullptr);
     ASSERT_EQ(classObj->Get(), Return42().Get());
-}
+}  // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
 
-TEST(ReferenceCountingGC, DISABLED_CopySemanticUsage)
+TEST(ReferenceCountingGC, CopySemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
     {
-        Object<size_t> obj2(obj1); // NOLINT(performance-unnecessary-copy-initialization)
+        Object<size_t> obj2(obj1);  // NOLINT(performance-unnecessary-copy-initialization)
         ASSERT_EQ(obj1.UseCount(), 2U);
         ASSERT_EQ(obj1.Get(), obj2.Get());
     }
@@ -49,7 +50,7 @@ TEST(ReferenceCountingGC, DISABLED_CopySemanticUsage)
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
 
-TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
+TEST(ReferenceCountingGC, MoveSemanticUsage)
 {
     constexpr size_t VALUE_TO_CREATE = 42U;
     Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
@@ -84,8 +85,8 @@ TEST(ReferenceCountingGC, DISABLED_MoveSemanticUsage)
     ASSERT_EQ(obj1.UseCount(), 1U);
 }
 
-
-TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
+TEST(ReferenceCountingGC, GcDeletingTest)
+{
     DeleteDetector::SetDeleteCount(0U);
     auto obj1 = MakeObject<DeleteDetector>();
     {
@@ -99,4 +100,15 @@ TEST(ReferenceCountingGC, DISABLED_GcDeletingTest) {
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 2U);
     obj1->~DeleteDetector();
     ASSERT_EQ(DeleteDetector::GetDeleteCount(), 3U);
+}
+
+TEST(ReferenceCountingGC, CorrectPtrReset) {
+    constexpr size_t VALUE_TO_CREATE = 42U;
+    Object<size_t> obj1 = MakeObject<size_t>(VALUE_TO_CREATE);
+    Object<size_t> obj2 = obj1;
+    ASSERT_EQ(obj1.UseCount(), 2);
+
+    constexpr size_t VALUE_TO_RESET = 206U;
+    obj2.Reset(new size_t(VALUE_TO_RESET));
+    ASSERT_NE(obj1.Get(), obj2.Get());
 }
