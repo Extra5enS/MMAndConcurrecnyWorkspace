@@ -45,7 +45,7 @@ class LockFreeStack {
     private:
         bool IsInHazardPtrs(Node *ptr, std::array<HazardPtr, MAX_THREAD_COUNT> &hazardPtrsArray) {
             for (auto &hazardPtr : hazardPtrsArray) {
-                if (ptr == hazardPtr.ptr.load()) {
+                if (ptr == hazardPtr.ptr.load(std::memory_order_acquire)) {
                     return true;
                 }
             }
@@ -84,7 +84,7 @@ class LockFreeStack {
         NO_MOVE_SEMANTIC(MemoryManager);
 
         void SetHazardPtr(Node *ptr) {
-            hazardPtrsArray_[GetThreadIndex()].ptr.store(ptr);
+            hazardPtrsArray_[GetThreadIndex()].ptr.store(ptr, std::memory_order_release);
         }
 
         void SetRetiredPtr(Node *ptr) {
@@ -93,9 +93,7 @@ class LockFreeStack {
 
         int GetThreadIndex() {
             if (threadIndex_ == -1) {
-                size_t numThreads = numThreads_.load();
-                while (!numThreads_.compare_exchange_weak(numThreads, numThreads + 1U)) { ; }
-                threadIndex_ = numThreads;
+                threadIndex_ = numThreads_.fetch_add(1U, std::memory_order_release);
             }
 
             return threadIndex_;
@@ -116,8 +114,8 @@ public:
     NO_MOVE_SEMANTIC(LockFreeStack);
 
     void Push(T val) {
-        auto newNode = new Node{val, head_.load()};
-        while (!head_.compare_exchange_weak(newNode->next, newNode)) {;}
+        auto newNode = new Node{val, head_.load(std::memory_order_acquire)};
+        while (!head_.compare_exchange_weak(newNode->next, newNode, std::memory_order_release, std::memory_order_relaxed)) {;}
     }
 
     std::optional<T> Pop() {
@@ -125,16 +123,16 @@ public:
             Node *curHead = nullptr;
 
             do {
-                curHead = head_.load();
+                curHead = head_.load(std::memory_order_acquire);
                 manager_.SetHazardPtr(curHead);
-            } while (curHead != head_.load());
+            } while (curHead != head_.load(std::memory_order_acquire));
 
             if (curHead == nullptr) {
                 return std::nullopt;
             }
             
             manager_.SetHazardPtr(curHead);
-            if (head_.compare_exchange_strong(curHead, curHead->next)) {
+            if (head_.compare_exchange_strong(curHead, curHead->next, std::memory_order_acquire, std::memory_order_relaxed)) {
                 T val = curHead->val;
                 manager_.SetHazardPtr(nullptr);
                 manager_.SetRetiredPtr(curHead);
@@ -144,7 +142,7 @@ public:
     }
 
     bool IsEmpty() {
-        return (head_.load() == nullptr);
+        return (head_.load(std::memory_order_acquire) == nullptr);
     }
 
 private:
