@@ -7,7 +7,7 @@
 
 #include "concurrency/lock_free_stack/include/lock_free_stack.h"
 
-TEST(LockFreeStackTest, DISABLED_SingleThreadTest)
+TEST(LockFreeStackTest, SingleThreadTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
@@ -27,7 +27,7 @@ TEST(LockFreeStackTest, DISABLED_SingleThreadTest)
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(LockFreeStackTest, DISABLED_MultithreadingTest)
+TEST(LockFreeStackTest, MultithreadingTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
@@ -84,7 +84,7 @@ TEST(LockFreeStackTest, DISABLED_MultithreadingTest)
     ASSERT_TRUE(queue.IsEmpty());
 }
 
-TEST(LockFreeStackTest, DISABLED_LoadTest)
+TEST(LockFreeStackTest, LoadTest)
 {
     LockFreeStack<size_t> queue;
     ASSERT_TRUE(queue.IsEmpty());
@@ -92,11 +92,12 @@ TEST(LockFreeStackTest, DISABLED_LoadTest)
     std::atomic<size_t> popCounter = 0;
 
     std::vector<size_t> container;
-    std::mutex lock;
+    [[maybe_unused]] std::mutex lock;
 
     static constexpr size_t THREAD_COUNT = 10U;
     static constexpr size_t PUSH_COUNT = 1'000'000U;
 
+    // NOLINTNEXTLINE(clang-diagnostic-unused-lambda-capture)
     auto push = [&queue, &pushCounter]() {
         for (size_t i = 0; i < PUSH_COUNT; i++) {
             queue.Push(i);
